@@ -3,7 +3,7 @@
 ## Build Commands
 
 ```sh
-go build -ldflags="-s -w" -o bin/ctlcraft ./cmd/main.go        # Backend
+go build -ldflags="-s -w" -o bin/ctlcraft ./cmd/main.go        # Backend (run after frontend build)
 cd frontend && npm install && npm run build && cd ..           # Frontend
 ```
 
@@ -46,3 +46,4 @@ cd frontend && npm run lint                                    # Frontend lint
 - All HTTP handlers accept/return JSON.
 - WebSocket at `/ws` for console streaming.
 - Frontend builds to `internal/ui/dist/` and is embedded via `go:embed`.
+- `internal/ui/dist/` is gitignored — run `./build-frontend.sh` before `go build`.
