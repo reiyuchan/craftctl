@@ -41,12 +41,8 @@ func New() Config {
 		port = Port
 	}
 
-	exe, err := os.Executable()
-	dataDir := "."
-	if err == nil {
-		dataDir = filepath.Dir(exe)
-	}
-	dataDir = filepath.Join(dataDir, "ctlcraft")
+	homeDir, _ := os.UserHomeDir()
+	dataDir := filepath.Join(homeDir, "ctlcraft")
 
 	return Config{
 		Port:      port,

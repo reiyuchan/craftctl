@@ -111,8 +111,6 @@ ctlcraft/
 │   ├── mc/
 │   │   ├── server.go            # Java process lifecycle (start/stop/send)
 │   │   └── serverproperties.go  # server.properties read/write
-│   ├── java/
-│   │   └── java_versions.json   # Bundled Java version metadata
 │   ├── server/
 │   │   ├── server.go            # Fiber app setup, DI
 │   │   ├── api.go               # HTTP route handlers

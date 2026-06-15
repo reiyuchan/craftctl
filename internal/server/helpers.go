@@ -642,33 +642,29 @@ func adoptiumReleases() ([]fiber.Map, error) {
 		return nil, fmt.Errorf("adoptium: status %d", resp.StatusCode())
 	}
 
-	osName := "linux"
-	if runtime.GOOS == "windows" {
-		osName = "windows"
+	ltsSet := make(map[int]bool)
+	for _, v := range releases.AvailableLTS {
+		ltsSet[v] = true
 	}
 
 	var items []fiber.Map
 	for _, ver := range releases.AvailableReleases {
-		isLTS := false
-		for _, lts := range releases.AvailableLTS {
-			if lts == ver {
-				isLTS = true
-				break
-			}
-		}
-
-		link := fmt.Sprintf(
-			"https://api.adoptium.net/v3/binary/latest/%d/%s/x64/jdk/hotspot/normal/eclipse",
-			ver, osName)
-
 		items = append(items, fiber.Map{
-			"version":      ver,
-			"lts":          isLTS,
-			"download_url": link,
+			"version": ver,
+			"lts":     ltsSet[ver],
 		})
 	}
 
 	return items, nil
+}
+
+type assetRelease struct {
+	Binary struct {
+		Package struct {
+			Link string `json:"link"`
+			Name string `json:"name"`
+		} `json:"package"`
+	} `json:"binary"`
 }
 
 func adoptiumDownload(version, installDir string) (string, error) {
@@ -679,16 +675,28 @@ func adoptiumDownload(version, installDir string) (string, error) {
 		ext = "zip"
 	}
 
-	link := fmt.Sprintf(
-		"https://api.adoptium.net/v3/binary/latest/%s/%s/x64/jdk/hotspot/normal/eclipse",
-		version, osName)
+	var assets []assetRelease
+	resp, err := httpClient.R().SetResult(&assets).Get(
+		fmt.Sprintf("https://api.adoptium.net/v3/assets/latest/%s/hotspot?architecture=x64&image_type=jdk&os=%s&vendor=eclipse",
+			version, osName))
+	if err != nil {
+		return "", fmt.Errorf("adoptium lookup: %w", err)
+	}
+	if !resp.IsSuccess() || len(assets) == 0 {
+		return "", fmt.Errorf("adoptium: no asset found for version %s", version)
+	}
+
+	link := assets[0].Binary.Package.Link
+	if link == "" {
+		return "", fmt.Errorf("adoptium: empty download link for version %s", version)
+	}
 
 	os.MkdirAll(installDir, 0o755)
 
 	filename := fmt.Sprintf("jdk-%s.%s", version, ext)
 	outPath := filepath.Join(installDir, filename)
 
-	resp, err := httpClient.R().SetOutput(outPath).Get(link)
+	resp, err = httpClient.R().SetOutput(outPath).Get(link)
 	if err != nil {
 		return "", fmt.Errorf("download java: %w", err)
 	}
