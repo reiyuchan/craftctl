@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/contrib/websocket"
 	"github.com/gofiber/fiber/v2"
-	"github.com/reiyuchan/ctlcraft/internal/mc"
+	"github.com/reiyuchan/craftctl/internal/mc"
 	"go.uber.org/zap"
 )
 

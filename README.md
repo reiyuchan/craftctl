@@ -1,4 +1,4 @@
-# ctlcraft
+# craftctl
 
 A self-hosted Minecraft server management dashboard with a web UI. Download server JARs, manage server lifecycle, configure `server.properties`, search and install mods/plugins, and stream real-time console output — all through a browser.
 
@@ -47,10 +47,10 @@ A self-hosted Minecraft server management dashboard with a web UI. Download serv
 
 ### Pre-built Binaries
 
-Download a binary from the [releases](https://github.com/reiyuchan/ctlcraft/releases) page (or the `bin/` directory):
+Download a binary from the [releases](https://github.com/reiyuchan/craftctl/releases) page (or the `bin/` directory):
 
 ```sh
-./bin/ctlcraft
+./bin/craftctl
 ```
 
 Then open [http://localhost:8000](http://localhost:8000) in your browser.
@@ -80,14 +80,14 @@ GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o bin/ctlcraft.exe ./cmd/ma
 ## Usage
 
 ```
-./ctlcraft [--port 8000]
+./craftctl [--port 8000]
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--port` | `8000` | HTTP server port |
 
-Open the web UI at `http://localhost:8000`. The server data is stored in `~/ctlcraft/servers/default/` by default.
+Open the web UI at `http://localhost:8000`. The server data is stored in `~/craftctl/servers/default/` by default.
 
 ### First-time Setup
 
@@ -223,7 +223,7 @@ Connect to `ws://localhost:8000/ws` for real-time console streaming. The server 
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Port | `8000` | HTTP server port |
-| Server Directory | `~/ctlcraft/servers/default/` | Minecraft server data directory |
+| Server Directory | `~/craftctl/servers/default/` | Minecraft server data directory |
 | Min RAM | `2G` | Minimum JVM heap size |
 | Max RAM | `4G` | Maximum JVM heap size |
 | JVM Flags | G1GC-tuned flags | Additional JVM arguments |

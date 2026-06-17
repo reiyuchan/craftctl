@@ -6,8 +6,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/reiyuchan/ctlcraft/internal/config"
-	"github.com/reiyuchan/ctlcraft/internal/server"
+	"github.com/reiyuchan/craftctl/internal/config"
+	"github.com/reiyuchan/craftctl/internal/server"
 )
 
 func main() {

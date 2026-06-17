@@ -3,7 +3,7 @@
 ## Build Commands
 
 ```sh
-go build -ldflags="-s -w" -o bin/ctlcraft ./cmd/main.go        # Backend (run after frontend build)
+go build -ldflags="-s -w" -o bin/craftctl ./cmd/main.go        # Backend (run after frontend build)
 cd frontend && npm install && npm run build && cd ..           # Frontend
 ```
 
@@ -42,7 +42,7 @@ cd frontend && npm run lint                                    # Frontend type-c
 
 ## Key Conventions
 
-- Server data lives in `~/ctlcraft/servers/default/` (or `APPDATA` on Windows).
+- Server data lives in `~/craftctl/servers/default/` (or `APPDATA` on Windows).
 - All HTTP handlers accept/return JSON.
 - WebSocket at `/ws` for console streaming.
 - Frontend builds to `internal/ui/dist/` and is embedded via `go:embed`.

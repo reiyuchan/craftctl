@@ -124,7 +124,7 @@ func WriteServerProperties(dir string, props ServerProperties) error {
 	path := filepath.Join(dir, "server.properties")
 
 	var sb strings.Builder
-	sb.WriteString("# Minecraft server properties (managed by ctlcraft)\n")
+	sb.WriteString("# Minecraft server properties (managed by craftctl)\n")
 	sb.WriteString("server-name=" + props.ServerName + "\n")
 	sb.WriteString("server-port=" + strconv.Itoa(props.ServerPort) + "\n")
 	sb.WriteString("motd=" + props.MOTD + "\n")

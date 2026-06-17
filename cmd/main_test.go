@@ -3,8 +3,8 @@ package main
 import (
 	"testing"
 
-	"github.com/reiyuchan/ctlcraft/internal/config"
-	"github.com/reiyuchan/ctlcraft/internal/server"
+	"github.com/reiyuchan/craftctl/internal/config"
+	"github.com/reiyuchan/craftctl/internal/server"
 )
 
 func TestRunWiring(t *testing.T) {

@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/reiyuchan/ctlcraft/internal/config"
+	"github.com/reiyuchan/craftctl/internal/config"
 )
 
 func TestNewServer(t *testing.T) {

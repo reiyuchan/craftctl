@@ -1,4 +1,4 @@
-module github.com/reiyuchan/ctlcraft
+module github.com/reiyuchan/craftctl
 
 go 1.26.1
 

@@ -6,9 +6,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/reiyuchan/ctlcraft/internal/config"
-	"github.com/reiyuchan/ctlcraft/internal/mc"
-	"github.com/reiyuchan/ctlcraft/internal/ui"
+	"github.com/reiyuchan/craftctl/internal/config"
+	"github.com/reiyuchan/craftctl/internal/mc"
+	"github.com/reiyuchan/craftctl/internal/ui"
 	"go.uber.org/zap"
 )
 

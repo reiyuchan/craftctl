@@ -5,9 +5,9 @@ before:
     - go mod tidy
 
 builds:
-  - id: ctlcraft
+  - id: craftctl
     main: ./cmd/main.go
-    binary: ctlcraft
+    binary: craftctl
     ldflags:
       - -s -w -X main.version={{.Version}}
     env:
