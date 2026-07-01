@@ -42,7 +42,7 @@ cd frontend && npm run lint                                    # Frontend type-c
 
 ## Key Conventions
 
-- Server data lives in `~/craftctl/servers/default/` (or `APPDATA` on Windows).
+- Server data lives in `~/craftctl/servers/default/`
 - All HTTP handlers accept/return JSON.
 - WebSocket at `/ws` for console streaming.
 - Frontend builds to `internal/ui/dist/` and is embedded via `go:embed`.
