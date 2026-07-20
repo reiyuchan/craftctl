@@ -3,7 +3,7 @@
 
         <!-- Stats Grid -->
         <div class="stats-grid">
-            <div class="stat-card" v-for="stat in store.stats" :key="stat.label">
+            <div class="stat-card" v-for="stat in statCards" :key="stat.label">
                 <div class="stat-icon">{{ stat.icon }}</div>
                 <div class="stat-info">
                     <span class="stat-value">{{ stat.value }}</span>
@@ -72,21 +72,33 @@
 
 <script>
 import { store } from '../store.js'
+import { events } from '../api'
 
 export default {
     name: 'DashboardPage',
     data() {
         return {
             store,
-            activeChart: 'TPS',
+            activeChart: 'CPU',
+            cleanup: null,
         }
     },
     computed: {
+        statCards() {
+            const s = this.store.currentStats
+            return [
+                { icon: '⚡', label: 'CPU Usage', value: s.cpu.toFixed(1) + '%', trend: 'neutral', trendVal: '' },
+                { icon: '🧠', label: 'RAM Usage', value: (s.ram / (1024 * 1024 * 1024)).toFixed(2) + ' GB', trend: 'neutral', trendVal: s.ramPercent.toFixed(1) + '%' },
+                { icon: '🧵', label: 'Threads', value: String(s.threads), trend: 'neutral', trendVal: '' },
+                { icon: '⏱', label: 'Status', value: this.store.serverStatus === 'running' ? 'Online' : 'Offline', trend: this.store.serverStatus === 'running' ? 'up' : 'down', trendVal: this.store.serverStatus === 'running' ? '●' : '○' },
+            ]
+        },
         chartPoints() {
             const data = this.store.chartData[this.activeChart]
-            const max = this.activeChart === 'TPS' ? 20 : 100
+            if (!data || data.length === 0) return []
+            const max = this.activeChart === 'TPS' ? 20 : this.activeChart === 'RAM' ? 8 : 100
             return data.map((v, i) => ({
-                x: (i / (data.length - 1)) * 400,
+                x: (i / Math.max(data.length - 1, 1)) * 400,
                 y: 100 - (v / max) * 90,
             }))
         },
@@ -97,6 +109,23 @@ export default {
             return this.chartPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
                 + ' L 400 100 L 0 100 Z'
         },
+    },
+    async mounted() {
+        await this.store.fetchServerStats()
+        this.cleanup = events.onServerStats((data) => {
+            this.store.currentStats = data
+            this.store.chartData.CPU.push(data.cpu)
+            this.store.chartData.RAM.push(data.ram / (1024 * 1024 * 1024))
+            this.store.chartData.TPS.push(20)
+            if (this.store.chartData.CPU.length > 60) {
+                this.store.chartData.CPU.shift()
+                this.store.chartData.RAM.shift()
+                this.store.chartData.TPS.shift()
+            }
+        })
+    },
+    beforeUnmount() {
+        if (this.cleanup) this.cleanup()
     },
     methods: {
         pingClass(ping) {

@@ -19,6 +19,7 @@ type EventHub struct {
 	log         map[chan string]struct{}
 	stopped     map[chan string]struct{}
 	errors      map[chan string]struct{}
+	stats       map[chan string]struct{}
 	stoppedFlag bool
 }
 
@@ -29,6 +30,7 @@ func NewEventHub(mc *mc.Server, logger *zap.Logger) *EventHub {
 		log:     make(map[chan string]struct{}),
 		stopped: make(map[chan string]struct{}),
 		errors:  make(map[chan string]struct{}),
+		stats:   make(map[chan string]struct{}),
 	}
 	go h.run()
 	return h
@@ -65,6 +67,12 @@ func (h *EventHub) broadcast(clients map[chan string]struct{}, data string) {
 	}
 }
 
+func (h *EventHub) BroadcastStats(snap StatsSnapshot) {
+	data := fmt.Sprintf(`{"cpu":%.2f,"ram":%d,"ramPercent":%.2f,"threads":%d,"timestamp":%d}`,
+		snap.CPU, snap.RAM, snap.RAMPercent, snap.Threads, snap.Timestamp)
+	h.broadcast(h.stats, data)
+}
+
 func (h *EventHub) Handler(eventType string) fiber.Handler {
 	var clients map[chan string]struct{}
 	switch eventType {
@@ -74,6 +82,8 @@ func (h *EventHub) Handler(eventType string) fiber.Handler {
 		clients = h.stopped
 	case "server-error":
 		clients = h.errors
+	case "server-stats":
+		clients = h.stats
 	default:
 		return func(c *fiber.Ctx) error {
 			return c.Status(404).JSON(fiber.Map{"error": "unknown event type"})

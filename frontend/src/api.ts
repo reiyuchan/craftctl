@@ -258,6 +258,13 @@ export const events = {
   onServerError(callback: ErrorCallback): () => void {
     return createSSE('server-error', callback)
   },
+  onServerStats(callback: StatsCallback): () => void {
+    return createSSE('server-stats', (data) => {
+      try { callback(JSON.parse(data)) } catch {}
+    })
+  },
 }
 
+  getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }[] }>('/api/server/stats'),
 
+type StatsCallback = (data: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }) => void

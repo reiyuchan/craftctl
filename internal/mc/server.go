@@ -195,3 +195,12 @@ func (s *Server) IsRunning() bool {
 
 	return s.cmd != nil && s.cmd.Process != nil
 }
+
+func (s *Server) PID() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.cmd == nil || s.cmd.Process == nil {
+		return 0
+	}
+	return s.cmd.Process.Pid
+}

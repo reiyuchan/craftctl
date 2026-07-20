@@ -29,6 +29,8 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/server/start", h.startServer)
 	g.Post("/server/stop", h.stopServer)
 	g.Post("/server/command", h.sendCommand)
+	g.Get("/events/server-stats", h.events.Handler("server-stats"))
+	g.Get("/server/stats", h.getServerStats)
 
 	g.Get("/java/detect", h.detectJava)
 	g.Get("/java/versions", h.javaVersions)
@@ -189,10 +191,15 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 	if err := h.ws.Start(java, h.cfg.ServerDir, args...); err != nil {
 		return errorResp(c, 500, err)
 	}
+	pid := h.mc.PID()
+	if pid > 0 {
+		h.stats.Start(pid)
+	}
 	return c.JSON(fiber.Map{"status": "starting"})
 }
 
 func (h Handler) stopServer(c *fiber.Ctx) error {
+	h.stats.Stop()
 	if err := h.ws.Stop(); err != nil {
 		return errorResp(c, 500, err)
 	}
@@ -206,6 +213,20 @@ func (h Handler) sendCommand(c *fiber.Ctx) error {
 		return errorResp(c, 500, err)
 	}
 	return c.JSON(fiber.Map{"status": "sent"})
+}
+
+func (h Handler) getServerStats(c *fiber.Ctx) error {
+	current := h.stats.Snapshot()
+	history := h.stats.History()
+	return c.JSON(fiber.Map{
+		"current": fiber.Map{
+			"cpu":        current.CPU,
+			"ram":        current.RAM,
+			"ramPercent": current.RAMPercent,
+			"threads":    current.Threads,
+		},
+		"history": history,
+	})
 }
 
 // ── Java ─────────────────────────────────────────────────────────────────────

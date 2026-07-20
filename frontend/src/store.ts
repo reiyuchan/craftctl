@@ -1,6 +1,9 @@
 import { reactive } from 'vue'
 import { api } from './api'
 
+type BackupInfo = any
+type ScheduledTask = any
+
 export type ServerStatus = 'running' | 'stopped' | 'starting'
 
 export type StatTrend = 'up' | 'down' | 'neutral'
@@ -17,6 +20,13 @@ export interface ChartData {
   TPS: number[]
   RAM: number[]
   CPU: number[]
+}
+
+export interface CurrentStats {
+  cpu: number
+  ram: number
+  ramPercent: number
+  threads: number
 }
 
 export type ChartMetric = keyof ChartData
@@ -263,6 +273,7 @@ export interface Store {
   serverStatus: ServerStatus
   stats: Stat[]
   chartData: ChartData
+  currentStats: CurrentStats
   onlinePlayers: OnlinePlayer[]
   maxPlayers: number
   allPlayers: Player[]
@@ -311,6 +322,7 @@ export interface Store {
   fetchInstalledPlugins(): Promise<void>
   fetchServerProps(): Promise<void>
   fetchServerInfo(): Promise<void>
+  fetchServerStats(): Promise<void>
 
   fetchWorlds(): Promise<void>
   loadWorld(name: string): Promise<void>
@@ -368,6 +380,7 @@ export const store = reactive<Store>({
   serverStatus: 'stopped',
   stats: [],
   chartData: { TPS: [], RAM: [], CPU: [] },
+  currentStats: { cpu: 0, ram: 0, ramPercent: 0, threads: 0 },
   onlinePlayers: [],
   maxPlayers: 20,
   allPlayers: [],
@@ -683,6 +696,18 @@ export const store = reactive<Store>({
       }
     } catch {
       // keep defaults
+    }
+  },
+
+  async fetchServerStats(): Promise<void> {
+    try {
+      const result = await api.getServerStats()
+      this.currentStats = result.current
+      this.chartData.CPU = result.history.map(h => h.cpu)
+      this.chartData.RAM = result.history.map(h => h.ram / (1024 * 1024 * 1024))
+      this.chartData.TPS = result.history.map(() => 20)
+    } catch {
+      // ignore
     }
   },
 

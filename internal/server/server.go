@@ -18,7 +18,8 @@ type Server struct {
 	logger *zap.Logger
 	mc     *mc.Server
 	ws     *WebSocket
-	events *EventHub
+	events    *EventHub
+	stats     *StatsCollector
 }
 
 func New(cfg config.Config) *Server {
@@ -32,8 +33,12 @@ func New(cfg config.Config) *Server {
 	mcServer := mc.New()
 	events := NewEventHub(mcServer, l)
 	ws := NewWebSocket(l, mcServer)
+	stats := NewStatsCollector()
+	stats.SetOnUpdate(func(snap StatsSnapshot) {
+		events.BroadcastStats(snap)
+	})
 
-	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events}
+	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events, stats: stats}
 
 	h := newHandler(s)
 	h.routes(app)
