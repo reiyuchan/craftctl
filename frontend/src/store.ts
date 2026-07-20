@@ -36,6 +36,14 @@ export interface Player {
   lastSeen: string
   playtime: string
 }
+
+export interface JVMSettings {
+  minRAM: string
+  maxRAM: string
+  jvmFlags: string
+  javaPath: string
+}
+
 export interface WhitelistEntry {
   name: string
   uuid: string
@@ -327,6 +335,14 @@ function hashCode(s: string): number {
   }
   return Math.abs(h)
 }
+
+
+const defaultJVMSettings = (): JVMSettings => ({
+  minRAM: '2G',
+  maxRAM: '4G',
+  jvmFlags: '-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:G1NewSizePercent=30 -XX:G1MaxNewSizePercent=40',
+  javaPath: '',
+})
 
 const defaultProps = (): ServerProps => ({
   serverName: 'My Minecraft Server',

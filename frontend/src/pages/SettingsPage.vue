@@ -40,8 +40,53 @@
             </div>
         </div>
 
+        <div class="jvm-section card settings-card">
+            <div class="card-header">
+                <span class="card-title">JVM SETTINGS</span>
+            </div>
+            <div class="settings-body">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Min RAM</span>
+                        <span class="setting-desc">Minimum heap size (e.g. 2G, 512M)</span>
+                    </div>
+                    <div class="setting-control">
+                        <input v-model="jvmSettings.minRAM" class="setting-input sm" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Max RAM</span>
+                        <span class="setting-desc">Maximum heap size (e.g. 4G, 8G)</span>
+                    </div>
+                    <div class="setting-control">
+                        <input v-model="jvmSettings.maxRAM" class="setting-input sm" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Java Path</span>
+                        <span class="setting-desc">Path to java binary (leave empty for default)</span>
+                    </div>
+                    <div class="setting-control">
+                        <input v-model="jvmSettings.javaPath" class="setting-input" placeholder="java" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">JVM Flags</span>
+                        <span class="setting-desc">Additional JVM arguments</span>
+                    </div>
+                    <div class="setting-control">
+                        <textarea v-model="jvmSettings.jvmFlags" class="setting-textarea" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-actions">
             <button class="btn btn-outline" @click="resetDefaults">RESET DEFAULTS</button>
+            <button class="btn btn-primary" @click="saveJVM">💾 SAVE JVM</button>
             <button class="btn btn-primary" @click="saveSettings">💾 SAVE server.properties</button>
         </div>
 
@@ -77,6 +122,12 @@ export default {
     data() {
         return {
             store,
+            jvmSettings: {
+                minRAM: store.jvmSettings.minRAM,
+                maxRAM: store.jvmSettings.maxRAM,
+                jvmFlags: store.jvmSettings.jvmFlags,
+                javaPath: store.jvmSettings.javaPath,
+            },
             settingsSections: [
                 {
                     title: 'GENERAL',
@@ -120,6 +171,13 @@ export default {
         store.fetchServerProps()
     },
     methods: {
+        saveJVM() {
+            store.jvmSettings.minRAM = this.jvmSettings.minRAM
+            store.jvmSettings.maxRAM = this.jvmSettings.maxRAM
+            store.jvmSettings.jvmFlags = this.jvmSettings.jvmFlags
+            store.jvmSettings.javaPath = this.jvmSettings.javaPath
+            this.$emit('toast', { msg: 'JVM settings saved!', type: 'success' })
+        },
         async saveSettings() {
             try {
                 const props = {
@@ -226,6 +284,25 @@ export default {
     outline: none;
     width: 180px;
     cursor: pointer;
+}
+
+.setting-textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    width: 320px;
+    outline: none;
+    resize: vertical;
+    min-height: 60px;
+    line-height: 1.5;
+}
+
+.setting-textarea:focus {
+    border-color: var(--green);
 }
 
 .settings-actions {

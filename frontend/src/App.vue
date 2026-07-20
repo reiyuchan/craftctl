@@ -98,7 +98,7 @@ export default {
         { id: 'plugins', icon: '🔌', label: 'Plugins', subtitle: 'Paper / Spigot / Purpur', component: PluginsPage },
         { id: 'versions', icon: '📦', label: 'Versions', subtitle: 'Server jar downloads', component: ServerVersionsPage },
         { id: 'java', icon: '☕', label: 'Java', subtitle: 'Java runtime manager', component: JavaPage },
-        { id: 'settings', icon: '⚙', label: 'Settings', subtitle: 'server.properties', component: SettingsPage },
+        { id: 'settings', icon: '⚙', label: 'Settings', subtitle: 'Server & JVM config', component: SettingsPage },
       ],
     }
   },
@@ -126,7 +126,12 @@ export default {
           this.store.addLog('INFO', 'warn', 'Server process exited.')
           unlisten()
         })
-        await api.startServer({})
+        await api.startServer({
+          javaPath: this.store.jvmSettings.javaPath || undefined,
+          minRam: this.store.jvmSettings.minRAM,
+          maxRam: this.store.jvmSettings.maxRAM,
+          jvmFlags: this.store.jvmSettings.jvmFlags,
+        })
         this.store.serverStatus = 'running'
         this.store.addLog('INFO', 'info', 'Server process started successfully.')
         this.showToast({ msg: 'Server started!', type: 'success' })
