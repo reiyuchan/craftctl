@@ -106,6 +106,14 @@ export interface JavaInstallation {
   releaseType: string
 }
 
+export interface BackupInfo {
+  name: string
+  size: string
+  sizeBytes: number
+  modifiedDate: string
+  type: 'world' | 'full'
+}
+
 // ── API Interface ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -181,6 +189,15 @@ export const api = {
     apiFetch<{ path: string; name: string }>('/api/worlds/backup', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteWorld: (name: string) =>
     apiVoid(`/api/worlds/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  // Backups
+  getBackups: () => apiFetch<BackupInfo[]>('/api/backups'),
+  createFullBackup: () =>
+    apiFetch<{ path: string; name: string }>('/api/backups/full', { method: 'POST' }),
+  restoreBackup: (name: string) =>
+    apiFetch<{ status: string }>('/api/backups/restore', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteBackup: (name: string) =>
+    apiVoid(`/api/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
   // Players
   getPlayers: () => apiFetch<{ total: number; players: string[] }>('/api/players'),

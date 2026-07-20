@@ -1,8 +1,7 @@
 import { reactive } from 'vue'
 import { api } from './api'
+import type { BackupInfo } from './api'
 
-type BackupInfo = any
-type ScheduledTask = any
 
 export type ServerStatus = 'running' | 'stopped' | 'starting'
 
@@ -324,6 +323,12 @@ export interface Store {
   fetchServerInfo(): Promise<void>
   fetchServerStats(): Promise<void>
 
+  backups: BackupInfo[]
+  fetchBackups(): Promise<void>
+  createFullBackup(): Promise<void>
+  restoreBackup(name: string): Promise<void>
+  deleteBackup(name: string): Promise<void>
+
   fetchWorlds(): Promise<void>
   loadWorld(name: string): Promise<void>
   backupWorld(name: string): Promise<void>
@@ -389,6 +394,7 @@ export const store = reactive<Store>({
   serverProps: defaultProps(),
   jvmSettings: defaultJVMSettings(),
   worlds: [],
+  backups: [],
   installedModLoader: null,
   installedMods: [],
   modSearchResults: [],
@@ -785,6 +791,46 @@ export const store = reactive<Store>({
       this.addLog('INFO', 'warn', `Deleted world: ${name}`)
     } catch (e: any) {
       this.addLog('ERROR', 'error', `Delete failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchBackups(): Promise<void> {
+    try {
+      this.backups = await api.getBackups()
+    } catch {
+      this.backups = []
+    }
+  },
+
+  async createFullBackup(): Promise<void> {
+    try {
+      const result = await api.createFullBackup()
+      this.addLog('INFO', 'info', `Full backup created: ${result.name}`)
+      await this.fetchBackups()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Full backup failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async restoreBackup(name: string): Promise<void> {
+    try {
+      await api.restoreBackup(name)
+      this.addLog('INFO', 'info', `Restored from backup: ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Restore failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async deleteBackup(name: string): Promise<void> {
+    try {
+      await api.deleteBackup(name)
+      this.backups = this.backups.filter(b => b.name !== name)
+      this.addLog('INFO', 'warn', `Deleted backup: ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Delete backup failed: ${e.message ?? e}`)
       throw e
     }
   },

@@ -77,10 +77,11 @@ import PluginsPage from './pages/PluginsPage.vue'
 import JavaPage from './pages/JavaPage.vue'
 import ServerVersionsPage from './pages/ServerVersionsPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
+import BackupsPage from './pages/BackupsPage.vue'
 
 export default {
   name: 'App',
-  components: { DashboardPage, ConsolePage, PlayersPage, WorldsPage, ModsPage, PluginsPage, JavaPage, ServerVersionsPage, SettingsPage },
+  components: { DashboardPage, ConsolePage, PlayersPage, WorldsPage, ModsPage, PluginsPage, JavaPage, ServerVersionsPage, SettingsPage, BackupsPage },
 
   data() {
     return {
@@ -94,6 +95,7 @@ export default {
         { id: 'console', icon: '⌨', label: 'Console', subtitle: 'Live server console', component: ConsolePage },
         { id: 'players', icon: '👤', label: 'Players', subtitle: 'Manage players', component: PlayersPage },
         { id: 'worlds', icon: '🌍', label: 'Worlds', subtitle: 'World management', component: WorldsPage },
+        { id: 'backups', icon: '💾', label: 'Backups', subtitle: 'Server backup & restore', component: BackupsPage },
         { id: 'mods', icon: '🧩', label: 'Mods', subtitle: 'Fabric / Forge / NeoForge', component: ModsPage },
         { id: 'plugins', icon: '🔌', label: 'Plugins', subtitle: 'Paper / Spigot / Purpur', component: PluginsPage },
         { id: 'versions', icon: '📦', label: 'Versions', subtitle: 'Server jar downloads', component: ServerVersionsPage },

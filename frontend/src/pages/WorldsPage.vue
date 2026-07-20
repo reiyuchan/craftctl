@@ -45,7 +45,9 @@ export default {
     name: 'WorldsPage',
     emits: ['toast'],
     data() {
-        return { store }
+        return {
+            store,
+        }
     },
     async mounted() {
         await this.store.fetchWorlds()
