@@ -1,8 +1,10 @@
 package server
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -85,6 +87,12 @@ func (h Handler) routes(app *fiber.App) {
 	g.Delete("/backups/:name", h.deleteBackup)
 
 	h.registerPlayerRoutes(g)
+
+	g.Get("/scheduler/tasks", h.listScheduledTasks)
+	g.Post("/scheduler/tasks", h.createScheduledTask)
+	g.Put("/scheduler/tasks/:id", h.updateScheduledTask)
+	g.Delete("/scheduler/tasks/:id", h.deleteScheduledTask)
+	g.Post("/scheduler/tasks/:id/run", h.runScheduledTask)
 
 	g.Get("/events/server-log", h.events.Handler("server-log"))
 	g.Get("/events/server-stopped", h.events.Handler("server-stopped"))
@@ -511,4 +519,56 @@ func (h Handler) installFabric(c *fiber.Ctx) error {
 		return errorResp(c, 500, err)
 	}
 	return c.JSON(fiber.Map{"path": path})
+}
+
+// ── Scheduler ─────────────────────────────────────────────────────────────
+
+func (h Handler) listScheduledTasks(c *fiber.Ctx) error {
+	return c.JSON(h.scheduler.GetTasks())
+}
+
+func (h Handler) createScheduledTask(c *fiber.Ctx) error {
+	var task ScheduledTask
+	if err := c.BodyParser(&task); err != nil {
+		return errorResp(c, 400, err)
+	}
+	if task.Name == "" || task.Type == "" || task.Interval == "" {
+		return errorResp(c, 400, fmt.Errorf("name, type, and interval are required"))
+	}
+	if task.Type != "backup" && task.Type != "restart" && task.Type != "stop" {
+		return errorResp(c, 400, fmt.Errorf("type must be backup, restart, or stop"))
+	}
+	if _, err := parseInterval(task.Interval); err != nil {
+		return errorResp(c, 400, fmt.Errorf("invalid interval: %w", err))
+	}
+	created := h.scheduler.AddTask(task)
+	return c.Status(201).JSON(created)
+}
+
+func (h Handler) updateScheduledTask(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var task ScheduledTask
+	if err := c.BodyParser(&task); err != nil {
+		return errorResp(c, 400, err)
+	}
+	if err := h.scheduler.UpdateTask(id, task); err != nil {
+		return errorResp(c, 404, err)
+	}
+	return c.JSON(fiber.Map{"status": "ok"})
+}
+
+func (h Handler) deleteScheduledTask(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := h.scheduler.RemoveTask(id); err != nil {
+		return errorResp(c, 404, err)
+	}
+	return c.JSON(fiber.Map{"status": "deleted"})
+}
+
+func (h Handler) runScheduledTask(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := h.scheduler.RunTask(id); err != nil {
+		return errorResp(c, 404, err)
+	}
+	return c.JSON(fiber.Map{"status": "ok"})
 }

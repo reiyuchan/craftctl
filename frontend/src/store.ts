@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { api } from './api'
-import type { BackupInfo } from './api'
+import type { BackupInfo, ScheduledTask } from './api'
 
 
 export type ServerStatus = 'running' | 'stopped' | 'starting'
@@ -329,6 +329,14 @@ export interface Store {
   restoreBackup(name: string): Promise<void>
   deleteBackup(name: string): Promise<void>
 
+  scheduledTasks: ScheduledTask[]
+  fetchScheduledTasks(): Promise<void>
+  createScheduledTask(task: { name: string; type: string; interval: string }): Promise<void>
+  updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean }): Promise<void>
+  deleteScheduledTask(id: string): Promise<void>
+  runScheduledTask(id: string): Promise<void>
+  toggleScheduledTask(id: string, enabled: boolean): Promise<void>
+
   fetchWorlds(): Promise<void>
   loadWorld(name: string): Promise<void>
   backupWorld(name: string): Promise<void>
@@ -395,6 +403,7 @@ export const store = reactive<Store>({
   jvmSettings: defaultJVMSettings(),
   worlds: [],
   backups: [],
+  scheduledTasks: [],
   installedModLoader: null,
   installedMods: [],
   modSearchResults: [],
@@ -831,6 +840,69 @@ export const store = reactive<Store>({
       this.addLog('INFO', 'warn', `Deleted backup: ${name}`)
     } catch (e: any) {
       this.addLog('ERROR', 'error', `Delete backup failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchScheduledTasks(): Promise<void> {
+    try {
+      this.scheduledTasks = await api.getScheduledTasks()
+    } catch {
+      this.scheduledTasks = []
+    }
+  },
+
+  async createScheduledTask(task: { name: string; type: string; interval: string }): Promise<void> {
+    try {
+      const created = await api.createScheduledTask(task)
+      this.scheduledTasks.push(created)
+      this.addLog('INFO', 'info', `Scheduled task created: ${task.name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Create task failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean }): Promise<void> {
+    try {
+      await api.updateScheduledTask(id, task)
+      await this.fetchScheduledTasks()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Update task failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async deleteScheduledTask(id: string): Promise<void> {
+    try {
+      await api.deleteScheduledTask(id)
+      this.scheduledTasks = this.scheduledTasks.filter(t => t.id !== id)
+      this.addLog('INFO', 'warn', 'Scheduled task deleted')
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Delete task failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async runScheduledTask(id: string): Promise<void> {
+    try {
+      await api.runScheduledTask(id)
+      await this.fetchScheduledTasks()
+      this.addLog('INFO', 'info', 'Task executed manually')
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Run task failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async toggleScheduledTask(id: string, enabled: boolean): Promise<void> {
+    const task = this.scheduledTasks.find(t => t.id === id)
+    if (!task) return
+    try {
+      await api.updateScheduledTask(id, { name: task.name, type: task.type, interval: task.interval, enabled })
+      task.enabled = enabled
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Toggle task failed: ${e.message ?? e}`)
       throw e
     }
   },

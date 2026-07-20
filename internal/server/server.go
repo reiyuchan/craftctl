@@ -13,13 +13,14 @@ import (
 )
 
 type Server struct {
-	root   *fiber.App
-	cfg    config.Config
-	logger *zap.Logger
-	mc     *mc.Server
-	ws     *WebSocket
+	root      *fiber.App
+	cfg       config.Config
+	logger    *zap.Logger
+	mc        *mc.Server
+	ws        *WebSocket
 	events    *EventHub
 	stats     *StatsCollector
+	scheduler *Scheduler
 }
 
 func New(cfg config.Config) *Server {
@@ -38,11 +39,13 @@ func New(cfg config.Config) *Server {
 		events.BroadcastStats(snap)
 	})
 
-	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events, stats: stats}
+	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events, stats: stats, scheduler: NewScheduler(cfg.DataDir, mcServer, ws, l)}
 
 	h := newHandler(s)
 	h.routes(app)
 	app.Use("/ws", ws.Handler())
+
+	s.scheduler.Start()
 
 	return s
 }

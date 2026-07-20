@@ -84,6 +84,65 @@
             </div>
         </div>
 
+        <div class="scheduler-section card settings-card">
+            <div class="card-header">
+                <span class="card-title">SCHEDULED TASKS</span>
+                <button class="btn btn-sm btn-primary" @click="showAddTask = true">+ ADD TASK</button>
+            </div>
+
+            <div v-if="showAddTask" class="task-form">
+                <div class="task-form-row">
+                    <input v-model="newTask.name" placeholder="Task name" class="setting-input" />
+                    <select v-model="newTask.type" class="setting-select">
+                        <option value="backup">Backup</option>
+                        <option value="restart">Restart</option>
+                        <option value="stop">Stop</option>
+                    </select>
+                    <input v-model="newTask.interval" placeholder="Interval (e.g. 6h, 1d, 30m)" class="setting-input" />
+                    <button class="btn btn-sm btn-primary" @click="addTask">SAVE</button>
+                    <button class="btn btn-sm btn-outline" @click="showAddTask = false">CANCEL</button>
+                </div>
+            </div>
+
+            <div class="settings-body">
+                <div v-if="store.scheduledTasks.length === 0" class="no-tasks">
+                    No scheduled tasks. Click "ADD TASK" to create one.
+                </div>
+                <div v-for="task in store.scheduledTasks" :key="task.id" class="task-row">
+                    <div class="task-info">
+                        <span class="task-name">{{ task.name }}</span>
+                        <span class="task-meta">{{ task.type }} | {{ task.interval }}</span>
+                        <span class="task-meta" v-if="task.lastRun">Last: {{ formatTime(task.lastRun) }}</span>
+                    </div>
+                    <div class="task-controls">
+                        <label class="toggle">
+                            <input type="checkbox" :checked="task.enabled" @change="toggleTask(task.id, ($event.target as HTMLInputElement).checked)" />
+                            <span class="toggle-track">
+                                <span class="toggle-thumb"></span>
+                            </span>
+                        </label>
+                        <button class="btn btn-xs btn-outline" @click="runTask(task.id)">RUN NOW</button>
+                        <button class="btn btn-xs btn-outline" @click="editTask(task)">EDIT</button>
+                        <button class="btn btn-xs btn-danger" @click="deleteTask(task.id)">DELETE</button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="editingTask" class="task-form">
+                <div class="task-form-row">
+                    <input v-model="editForm.name" placeholder="Task name" class="setting-input" />
+                    <select v-model="editForm.type" class="setting-select">
+                        <option value="backup">Backup</option>
+                        <option value="restart">Restart</option>
+                        <option value="stop">Stop</option>
+                    </select>
+                    <input v-model="editForm.interval" placeholder="Interval" class="setting-input" />
+                    <button class="btn btn-sm btn-primary" @click="saveEdit">UPDATE</button>
+                    <button class="btn btn-sm btn-outline" @click="editingTask = null">CANCEL</button>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-actions">
             <button class="btn btn-outline" @click="resetDefaults">RESET DEFAULTS</button>
             <button class="btn btn-primary" @click="saveJVM">💾 SAVE JVM</button>
@@ -128,6 +187,10 @@ export default {
                 jvmFlags: store.jvmSettings.jvmFlags,
                 javaPath: store.jvmSettings.javaPath,
             },
+            showAddTask: false,
+            newTask: { name: '', type: 'backup', interval: '6h' },
+            editingTask: null as any,
+            editForm: { name: '', type: 'backup', interval: '' },
             settingsSections: [
                 {
                     title: 'GENERAL',
@@ -169,6 +232,7 @@ export default {
     },
     mounted() {
         store.fetchServerProps()
+        store.fetchScheduledTasks()
     },
     methods: {
         saveJVM() {
@@ -207,6 +271,58 @@ export default {
         resetDefaults() {
             Object.assign(this.store.serverProps, DEFAULT_PROPS)
             this.$emit('toast', { msg: 'Reset to defaults', type: 'warn' })
+        },
+        async addTask() {
+            try {
+                await store.createScheduledTask(this.newTask)
+                this.showAddTask = false
+                this.newTask = { name: '', type: 'backup', interval: '6h' }
+                this.$emit('toast', { msg: 'Task created!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        async runTask(id: string) {
+            try {
+                await store.runScheduledTask(id)
+                this.$emit('toast', { msg: 'Task executed!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        async deleteTask(id: string) {
+            try {
+                await store.deleteScheduledTask(id)
+                this.$emit('toast', { msg: 'Task deleted', type: 'warn' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        editTask(task: any) {
+            this.editingTask = task
+            this.editForm = { name: task.name, type: task.type, interval: task.interval }
+        },
+        async saveEdit() {
+            if (!this.editingTask) return
+            try {
+                await store.updateScheduledTask(this.editingTask.id, { ...this.editForm, enabled: this.editingTask.enabled })
+                this.editingTask = null
+                this.$emit('toast', { msg: 'Task updated!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        async toggleTask(id: string, enabled: boolean) {
+            try {
+                await store.toggleScheduledTask(id, enabled)
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        formatTime(rfc3339: string) {
+            if (!rfc3339) return 'Never'
+            const d = new Date(rfc3339)
+            return d.toLocaleString()
         },
     },
 }
@@ -310,5 +426,79 @@ export default {
     justify-content: flex-end;
     gap: 12px;
     padding-top: 8px;
+}
+
+.task-form {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30, 45, 61, 0.4);
+}
+
+.task-form-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.task-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(30, 45, 61, 0.4);
+}
+
+.task-row:last-child {
+    border-bottom: none;
+}
+
+.task-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.task-name {
+    font-size: 13px;
+}
+
+.task-meta {
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.task-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.no-tasks {
+    padding: 20px 16px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.btn-xs {
+    padding: 3px 8px;
+    font-size: 11px;
+}
+
+.btn-sm {
+    padding: 5px 12px;
+    font-size: 12px;
+}
+
+.btn-danger {
+    background: rgba(220, 38, 38, 0.2);
+    border: 1px solid rgba(220, 38, 38, 0.4);
+    color: #ef4444;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.btn-danger:hover {
+    background: rgba(220, 38, 38, 0.3);
 }
 </style>

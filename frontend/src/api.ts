@@ -106,6 +106,16 @@ export interface JavaInstallation {
   releaseType: string
 }
 
+export interface ScheduledTask {
+  id: string
+  name: string
+  type: 'backup' | 'restart' | 'stop'
+  interval: string
+  enabled: boolean
+  lastRun: string
+  nextRun: string
+}
+
 export interface BackupInfo {
   name: string
   size: string
@@ -199,6 +209,17 @@ export const api = {
   deleteBackup: (name: string) =>
     apiVoid(`/api/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
+  // Scheduler
+  getScheduledTasks: () => apiFetch<ScheduledTask[]>('/api/scheduler/tasks'),
+  createScheduledTask: (task: { name: string; type: string; interval: string }) =>
+    apiFetch<ScheduledTask>('/api/scheduler/tasks', { method: 'POST', body: JSON.stringify(task) }),
+  updateScheduledTask: (id: string, task: { name: string; type: string; interval: string; enabled: boolean }) =>
+    apiVoid(`/api/scheduler/tasks/${id}`, { method: 'PUT', body: JSON.stringify(task) }),
+  deleteScheduledTask: (id: string) =>
+    apiVoid(`/api/scheduler/tasks/${id}`, { method: 'DELETE' }),
+  runScheduledTask: (id: string) =>
+    apiVoid(`/api/scheduler/tasks/${id}/run`, { method: 'POST' }),
+
   // Players
   getPlayers: () => apiFetch<{ total: number; players: string[] }>('/api/players'),
   getOps: () => apiFetch<PlayerEntry[]>('/api/players/ops'),
@@ -245,6 +266,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ software, mcVersion, build }),
     }),
+
+  getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }[] }>('/api/server/stats'),
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────
@@ -252,6 +275,7 @@ export const api = {
 type LogCallback = (line: string) => void
 type VoidCallback = () => void
 type ErrorCallback = (error: string) => void
+type StatsCallback = (data: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }) => void
 
 let _eventSources: Record<string, EventSource | null> = {
   'server-log': null,
@@ -292,7 +316,3 @@ export const events = {
     })
   },
 }
-
-  getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }[] }>('/api/server/stats'),
-
-type StatsCallback = (data: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }) => void
