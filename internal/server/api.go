@@ -64,6 +64,11 @@ func (h Handler) routes(app *fiber.App) {
 
 	g.Post("/server/install", h.installServer)
 
+	g.Get("/worlds", h.listWorlds)
+	g.Post("/worlds/load", h.loadWorld)
+	g.Post("/worlds/backup", h.backupWorld)
+	g.Delete("/worlds/:name", h.deleteWorld)
+
 	h.registerPlayerRoutes(g)
 
 	g.Get("/events/server-log", h.events.Handler("server-log"))

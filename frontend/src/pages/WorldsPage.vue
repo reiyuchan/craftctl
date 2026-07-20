@@ -2,27 +2,34 @@
     <div class="tab-content">
 
         <div class="worlds-header">
-            <button class="btn btn-primary">+ NEW WORLD</button>
-            <button class="btn btn-outline">📂 IMPORT</button>
+            <button class="btn btn-outline" @click="store.fetchWorlds()">Refresh</button>
+        </div>
+
+        <div v-if="store.worlds.length === 0" class="worlds-empty">
+            <span>No worlds found in server directory</span>
         </div>
 
         <div class="worlds-grid">
             <div v-for="world in store.worlds" :key="world.name" class="world-card">
 
                 <div class="world-thumb" :style="{ background: world.gradient }">
-                    <span class="world-biome">{{ world.biome }}</span>
+                    <span class="world-biome">{{ world.active ? 'ACTIVE' : 'World' }}</span>
                     <span v-if="world.active" class="world-active-badge">ACTIVE</span>
                 </div>
 
                 <div class="world-info">
                     <span class="world-name">{{ world.name }}</span>
-                    <span class="world-meta">{{ world.size }} · Seed: {{ world.seed }}</span>
+                    <span class="world-meta">{{ world.size }}</span>
                 </div>
 
                 <div class="world-actions">
-                    <button class="tbl-btn" :disabled="world.active" @click="loadWorld(world)">Load</button>
-                    <button class="tbl-btn" @click="backupWorld(world)">Backup</button>
-                    <button class="tbl-btn danger" :disabled="world.active" @click="deleteWorld(world)">Delete</button>
+                    <button class="tbl-btn" :disabled="world.active || world.loading" @click="handleLoad(world)">
+                        {{ world.loading ? 'Loading...' : 'Load' }}
+                    </button>
+                    <button class="tbl-btn" :disabled="world.backingUp" @click="handleBackup(world)">
+                        {{ world.backingUp ? 'Backing up...' : 'Backup' }}
+                    </button>
+                    <button class="tbl-btn danger" :disabled="world.active" @click="handleDelete(world)">Delete</button>
                 </div>
 
             </div>
@@ -40,18 +47,35 @@ export default {
     data() {
         return { store }
     },
+    async mounted() {
+        await this.store.fetchWorlds()
+    },
     methods: {
-        loadWorld(world) {
-            this.store.worlds.forEach(w => (w.active = false))
-            world.active = true
-            this.$emit('toast', { msg: `Loaded world: ${world.name}`, type: 'success' })
+        async handleLoad(world) {
+            try {
+                await this.store.loadWorld(world.name)
+                this.$emit('toast', { msg: `Loaded world: ${world.name}`, type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Failed to load world: ${e.message}`, type: 'danger' })
+            }
         },
-        backupWorld(world) {
-            this.$emit('toast', { msg: `Backup started for ${world.name}`, type: 'success' })
+        async handleBackup(world) {
+            try {
+                this.$emit('toast', { msg: `Backup started for ${world.name}`, type: 'success' })
+                await this.store.backupWorld(world.name)
+                this.$emit('toast', { msg: `Backup complete: ${world.name}`, type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Backup failed: ${e.message}`, type: 'danger' })
+            }
         },
-        deleteWorld(world) {
-            this.store.worlds = this.store.worlds.filter(w => w.name !== world.name)
-            this.$emit('toast', { msg: `Deleted ${world.name}`, type: 'danger' })
+        async handleDelete(world) {
+            if (!confirm(`Delete world "${world.name}"? This cannot be undone.`)) return
+            try {
+                await this.store.deleteWorld(world.name)
+                this.$emit('toast', { msg: `Deleted ${world.name}`, type: 'danger' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Delete failed: ${e.message}`, type: 'danger' })
+            }
         },
     },
 }
@@ -62,6 +86,13 @@ export default {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
+}
+
+.worlds-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
 }
 
 .worlds-grid {

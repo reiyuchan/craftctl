@@ -69,6 +69,16 @@ export interface PluginSearchItem {
 export interface InstalledItem {
   file_name: string; name: string; version: string; size: string; source: string
 }
+
+export interface WorldItem {
+  name: string
+  size: string
+  sizeBytes: number
+  modifiedDate: string
+  hasLevelDat: boolean
+  active: boolean
+}
+
 export interface PlayerEntry {
   uuid?: string
   name: string
