@@ -184,8 +184,117 @@ func TestInstalledJars_WithFiles(t *testing.T) {
 }
 
 func TestErrorRespType(t *testing.T) {
-	// errorResp is a function that takes (c, code, err); we can't test the HTTP part
-	// without a Fiber context, but we can verify it doesn't panic when called correctly.
-	// This is a compile-time check - the function signature is correct.
 	_ = errorResp
+}
+
+func TestInstalledJars_NestedDirs(t *testing.T) {
+	tmp := t.TempDir()
+	modsDir := filepath.Join(tmp, "mods")
+	os.MkdirAll(filepath.Join(modsDir, "sub"), 0755)
+	os.WriteFile(filepath.Join(modsDir, "a.jar"), []byte("aaa"), 0644)
+	os.WriteFile(filepath.Join(modsDir, "sub", "b.jar"), []byte("bb"), 0644)
+
+	items, err := installedJars(tmp, "mods")
+	if err != nil {
+		t.Fatalf("installedJars: %v", err)
+	}
+	if len(items) != 1 {
+		t.Errorf("installedJars items = %d, want 1 (subdirs ignored)", len(items))
+	}
+}
+
+func TestInstalledJars_SizesAndVersion(t *testing.T) {
+	tmp := t.TempDir()
+	modsDir := filepath.Join(tmp, "mods")
+	os.MkdirAll(modsDir, 0755)
+	os.WriteFile(filepath.Join(modsDir, "big.jar"), make([]byte, 2048), 0644)
+
+	items, err := installedJars(tmp, "mods")
+	if err != nil {
+		t.Fatalf("installedJars: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+	if items[0].Version != "unknown" {
+		t.Errorf("version = %q, want %q", items[0].Version, "unknown")
+	}
+	if items[0].Size != "2.0K" {
+		t.Errorf("size = %q, want %q", items[0].Size, "2.0K")
+	}
+	if items[0].Name != "big" {
+		t.Errorf("name = %q, want %q", items[0].Name, "big")
+	}
+	if items[0].Source != "Local" {
+		t.Errorf("source = %q, want %q", items[0].Source, "Local")
+	}
+}
+
+func TestInstalledJars_NonexistentDir(t *testing.T) {
+	items, err := installedJars("/nonexistent/path/xyz", "mods")
+	if err != nil {
+		t.Fatalf("expected no error for nonexistent dir, got: %v", err)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected 0 items, got %d", len(items))
+	}
+}
+
+func TestDirSize(t *testing.T) {
+	tmp := t.TempDir()
+	os.WriteFile(filepath.Join(tmp, "a.txt"), make([]byte, 100), 0644)
+	os.MkdirAll(filepath.Join(tmp, "sub"), 0755)
+	os.WriteFile(filepath.Join(tmp, "sub", "b.txt"), make([]byte, 200), 0644)
+
+	size, err := dirSize(tmp)
+	if err != nil {
+		t.Fatalf("dirSize: %v", err)
+	}
+	if size != 300 {
+		t.Errorf("dirSize = %d, want 300", size)
+	}
+}
+
+func TestDirSize_Empty(t *testing.T) {
+	tmp := t.TempDir()
+	size, err := dirSize(tmp)
+	if err != nil {
+		t.Fatalf("dirSize: %v", err)
+	}
+	if size != 0 {
+		t.Errorf("dirSize = %d, want 0", size)
+	}
+}
+
+func TestModrinthSearchFacets(t *testing.T) {
+	tests := []struct {
+		name        string
+		loaders     []string
+		gameVersion string
+		wantFacets  [][]string
+	}{
+		{"no filters", nil, "", nil},
+		{"single loader", []string{"fabric"}, "", [][]string{{"categories:fabric"}}},
+		{"multiple loaders", []string{"forge", "fabric"}, "", [][]string{{"categories:forge", "categories:fabric"}}},
+		{"version only", nil, "1.20.1", [][]string{{"versions:1.20.1"}}},
+		{"both", []string{"forge", "fabric"}, "1.20.1", [][]string{{"categories:forge", "categories:fabric"}, {"versions:1.20.1"}}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildModrinthFacets(tc.loaders, tc.gameVersion)
+			if len(got) != len(tc.wantFacets) {
+				t.Fatalf("got %d facet groups, want %d", len(got), len(tc.wantFacets))
+			}
+			for i := range got {
+				if len(got[i]) != len(tc.wantFacets[i]) {
+					t.Fatalf("facet group %d: got %d items, want %d", i, len(got[i]), len(tc.wantFacets[i]))
+				}
+				for j := range got[i] {
+					if got[i][j] != tc.wantFacets[i][j] {
+						t.Errorf("facet[%d][%d] = %q, want %q", i, j, got[i][j], tc.wantFacets[i][j])
+					}
+				}
+			}
+		})
+	}
 }
