@@ -40,6 +40,7 @@ func (h Handler) routes(app *fiber.App) {
 
 	g.Post("/folder/open", h.openFolder)
 
+	g.Get("/mods/popular", h.popularMods)
 	g.Post("/mods/search", h.searchMods)
 	g.Get("/mods/versions/:id", h.modVersions)
 	g.Post("/mods/download", h.downloadMod)
@@ -48,6 +49,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/mods/updates", h.checkModUpdates)
 	g.Post("/mods/update", h.updateMod)
 
+	g.Get("/plugins/popular", h.popularPlugins)
 	g.Post("/plugins/search", h.searchPlugins)
 	g.Post("/plugins/download", h.downloadPlugin)
 	g.Get("/plugins/installed", h.installedPlugins)
@@ -439,6 +441,22 @@ func (h Handler) updatePlugin(c *fiber.Ctx) error {
 	}
 	os.Remove(filePath(h.cfg.ServerDir, "plugins", body.FileName))
 	return c.JSON(fiber.Map{"path": path})
+}
+
+func (h Handler) popularMods(c *fiber.Ctx) error {
+	items, err := popularMods()
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	return c.JSON(items)
+}
+
+func (h Handler) popularPlugins(c *fiber.Ctx) error {
+	items, err := popularPlugins()
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	return c.JSON(items)
 }
 
 // ── Versions ───────────────────────────────────────────────────────────────

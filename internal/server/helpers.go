@@ -331,10 +331,6 @@ func modrinthSearch(query string, loaders []string, gameVersion string) ([]fiber
 		if hit.Icon != "" {
 			iconURL = "https://cdn.modrinth.com/" + hit.Icon
 		}
-		latest := ""
-		if len(hit.Versions) > 0 {
-			latest = hit.Versions[0]
-		}
 		items[i] = fiber.Map{
 			"id":             hit.ProjectID,
 			"slug":           hit.Slug,
@@ -342,7 +338,7 @@ func modrinthSearch(query string, loaders []string, gameVersion string) ([]fiber
 			"description":    hit.Description,
 			"author":         hit.Author,
 			"downloads":      fmt.Sprintf("%d", hit.Downloads),
-			"latest_version": latest,
+			"latest_version": hit.LatestVersion,
 			"icon_url":       iconURL,
 			"categories":     hit.Categories,
 			"loaders":        hit.Loaders,
@@ -376,10 +372,125 @@ type modrinthSearchResult struct {
 		Author      string   `json:"author"`
 		Downloads   int64    `json:"downloads"`
 		Versions    []string `json:"versions"`
-		Icon        string   `json:"icon"`
-		Categories  []string `json:"categories"`
-		Loaders     []string `json:"loaders"`
+		Icon           string   `json:"icon_url"`
+		LatestVersion  string   `json:"latest_version"`
+		Categories     []string `json:"categories"`
+		Loaders        []string `json:"loaders"` // always nil from search endpoint; frontend handles gracefully
 	} `json:"hits"`
+}
+
+func popularMods() ([]fiber.Map, error) {
+	facets := `[["categories:fabric"],["project_type:mod"]]`
+	var result modrinthSearchResult
+	resp, err := httpClient.R().
+		SetQueryParams(map[string]string{"limit": "12", "index": "downloads", "facets": facets}).
+		SetResult(&result).
+		Get("https://api.modrinth.com/v2/search")
+	if err != nil {
+		return nil, fmt.Errorf("popular mods: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("popular mods: status %d", resp.StatusCode())
+	}
+
+	items := make([]fiber.Map, len(result.Hits))
+	for i, hit := range result.Hits {
+		iconURL := ""
+		if hit.Icon != "" {
+			iconURL = "https://cdn.modrinth.com/" + hit.Icon
+		}
+		items[i] = fiber.Map{
+			"id":             hit.ProjectID,
+			"slug":           hit.Slug,
+			"title":          hit.Title,
+			"description":    hit.Description,
+			"author":         hit.Author,
+			"downloads":      fmt.Sprintf("%d", hit.Downloads),
+			"latest_version": hit.LatestVersion,
+			"icon_url":       iconURL,
+			"categories":     hit.Categories,
+			"loaders":        hit.Loaders,
+			"source":         "Modrinth",
+		}
+	}
+	return items, nil
+}
+
+func popularPlugins() ([]fiber.Map, error) {
+	var items []fiber.Map
+
+	facets := `[["categories:paper"],["project_type:plugin"]]`
+	var mr modrinthSearchResult
+	resp, _ := httpClient.R().
+		SetQueryParams(map[string]string{"limit": "12", "index": "downloads", "facets": facets}).
+		SetResult(&mr).
+		Get("https://api.modrinth.com/v2/search")
+
+	if resp != nil && resp.IsSuccess() {
+		for _, hit := range mr.Hits {
+			iconURL := ""
+			if hit.Icon != "" {
+				iconURL = "https://cdn.modrinth.com/" + hit.Icon
+			}
+			latest := hit.LatestVersion
+			items = append(items, fiber.Map{
+				"id":             hit.ProjectID,
+				"slug":           hit.Slug,
+				"name":           hit.Title,
+				"description":    hit.Description,
+				"author":         hit.Author,
+				"downloads":      fmt.Sprintf("%d", hit.Downloads),
+				"latest_version": latest,
+				"icon_url":       iconURL,
+				"categories":     hit.Categories,
+				"loaders":        hit.Loaders,
+				"source":         "Modrinth",
+			})
+		}
+	}
+
+	var hg struct {
+		Result []struct {
+			Slug        string `json:"slug"`
+			Name        string `json:"name"`
+			Description string `json:"description"`
+			Namespace   struct {
+				Owner string `json:"owner"`
+				Slug  string `json:"slug"`
+			} `json:"namespace"`
+			AvatarURL string `json:"avatarUrl"`
+			Stats     struct {
+				Downloads int `json:"downloads"`
+			} `json:"stats"`
+		} `json:"result"`
+	}
+	resp2, _ := httpClient.R().
+		SetQueryParams(map[string]string{"platform": "PAPER", "sort": "downloads", "limit": "12"}).
+		SetResult(&hg).
+		Get("https://hangar.papermc.io/api/v1/projects")
+
+	if resp2 != nil && resp2.IsSuccess() {
+		for _, p := range hg.Result {
+			items = append(items, fiber.Map{
+				"id":             p.Slug,
+				"slug":           p.Slug,
+				"name":           p.Name,
+				"description":    p.Description,
+				"author":         p.Namespace.Owner,
+				"downloads":      fmt.Sprintf("%d", p.Stats.Downloads),
+				"latest_version": "",
+				"icon_url":       p.AvatarURL,
+				"categories":     []string{},
+				"loaders":        []string{"Paper"},
+				"source":         "Hangar",
+			})
+		}
+	}
+
+	if items == nil {
+		items = []fiber.Map{}
+	}
+	return items, nil
 }
 
 func modrinthVersions(id string) ([]modrinthVersion, error) {

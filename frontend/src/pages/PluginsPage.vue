@@ -213,15 +213,49 @@
                     </div>
                 </div>
 
+                <div v-else-if="popularResults.length > 0 && !browseQuery.trim()" class="browse-results">
+                    <div class="popular-section-label">POPULAR PLUGINS</div>
+                    <div v-for="result in popularResults" :key="result.id" class="result-card">
+                        <div class="result-icon">{{ result.icon }}</div>
+                        <div class="result-meta">
+                            <div class="result-name-row">
+                                <span class="result-name">{{ result.title || result.name }}</span>
+                                <span class="result-author">by {{ result.author }}</span>
+                                <span class="result-source-tag">{{ result.source }}</span>
+                            </div>
+                            <span class="result-desc">{{ result.description }}</span>
+                            <div class="result-tags">
+                                <span class="result-tag">{{ result.categories?.[0] }}</span>
+                                <span class="result-tag" v-for="l in result.loaders" :key="l"
+                                    :class="(l || '').toLowerCase()">{{ l }}</span>
+                            </div>
+                        </div>
+                        <div class="result-stats">
+                            <span class="result-downloads">⬇ {{ result.downloads }}</span>
+                            <span class="result-version">v{{ result.latest_version || result.latestVersion }}</span>
+                        </div>
+                        <div class="result-action">
+                            <button v-if="result.installed" class="btn btn-sm btn-outline installed-btn" disabled>✓
+                                Installed</button>
+                            <button v-else class="btn btn-sm btn-primary" @click="installPlugin(result)">⬇
+                                Install</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else-if="isLoadingPopular" class="searching-state">
+                    <span class="spinner-lg">◌</span><span>Loading popular plugins...</span>
+                </div>
+
                 <div v-else class="browse-empty">
                     <div class="browse-empty-inner">
                         <span class="empty-icon">🔌</span>
                         <span class="browse-empty-title">SEARCH FOR PLUGINS</span>
                         <span class="browse-empty-sub">Hangar, Modrinth & CurseForge — Paper, Spigot, Purpur</span>
-                        <div class="featured-label">POPULAR PLUGINS</div>
+                        <div class="featured-label">QUICK SEARCH</div>
                         <div class="quick-searches">
                             <button v-for="q in quickSearches" :key="q" class="quick-btn" @click="quickSearch(q)">{{ q
-                                }}</button>
+                            }}</button>
                         </div>
                     </div>
                 </div>
@@ -274,6 +308,8 @@ export default defineComponent({
             quickSearches: ['EssentialsX', 'LuckPerms', 'WorldGuard', 'Vault', 'Dynmap', 'CoreProtect', 'Chunky', 'ShopGUI+'],
             searchResults: [] as any[],
             isSearchingPlugins: false,
+            popularResults: [] as any[],
+            isLoadingPopular: false,
         }
     },
     computed: {
@@ -317,6 +353,22 @@ export default defineComponent({
             return icons[cat] || '🔌'
         },
         quickSearch(q: string): void { this.browseQuery = q; this.doSearch() },
+        async fetchPopularPlugins(): Promise<void> {
+            if (this.popularResults.length > 0) return
+            this.isLoadingPopular = true
+            try {
+                const results = await api.getPopularPlugins()
+                this.popularResults = results.map((r: any) => ({
+                    ...r,
+                    installed: this.store.installedPlugins.some((p: any) => p.id === r.id),
+                    icon: this.getPluginIcon(r),
+                }))
+            } catch (e) {
+                console.error('Failed to load popular plugins:', e)
+            } finally {
+                this.isLoadingPopular = false
+            }
+        },
         async installPlugin(result: any): Promise<void> {
             try {
                 this.$emit('toast', { msg: `Downloading ${result.title || result.name}...`, type: 'success' })
@@ -340,6 +392,7 @@ export default defineComponent({
                     })
                 }
                 this.searchResults = this.searchResults.map((r: any) => r.id === result.id ? { ...r, installed: true } : r)
+                this.popularResults = this.popularResults.map((r: any) => r.id === result.id ? { ...r, installed: true } : r)
                 this.$emit('toast', { msg: `${result.title || result.name} installed!`, type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Install failed: ${e}`, type: 'danger' })
@@ -407,6 +460,7 @@ export default defineComponent({
 
     mounted() {
         store.fetchInstalledPlugins()
+        this.fetchPopularPlugins()
     },
 })
 </script>
@@ -1105,6 +1159,14 @@ export default defineComponent({
     display: flex;
     justify-content: center;
     padding: 40px 0;
+}
+
+.popular-section-label {
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+    letter-spacing: 3px;
+    color: var(--red);
+    padding: 4px 0 8px;
 }
 
 .browse-empty-inner {

@@ -142,6 +142,7 @@ export const api = {
   openFolder: (path: string) => apiVoid('/api/folder/open', { method: 'POST', body: JSON.stringify({ path }) }),
 
   // Mods
+  getPopularMods: () => apiFetch<ModSearchItem[]>('/api/mods/popular'),
   searchMods: (query: string, loaders?: string[], gameVersion?: string) =>
     apiFetch<ModSearchItem[]>('/api/mods/search', { method: 'POST', body: JSON.stringify({ query, loaders, gameVersion }) }),
   getModVersions: (projectId: string) => apiFetch<ModSearchItem[]>('/api/mods/versions/' + projectId),
@@ -155,6 +156,7 @@ export const api = {
   deleteMod: (fileName: string) => apiVoid('/api/mods/delete', { method: 'POST', body: JSON.stringify({ fileName }) }),
 
   // Plugins
+  getPopularPlugins: () => apiFetch<PluginSearchItem[]>('/api/plugins/popular'),
   searchPlugins: (query: string) =>
     apiFetch<PluginSearchItem[]>('/api/plugins/search', { method: 'POST', body: JSON.stringify({ query }) }),
   downloadPlugin: (slug: string, version?: string, source?: string) =>
