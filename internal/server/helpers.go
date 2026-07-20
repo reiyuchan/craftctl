@@ -584,17 +584,29 @@ func pluginDownload(slug, version, source, pluginsDir string) (string, error) {
 
 // ── Installed JARs ────────────────────────────────────────────────────────
 
-func installedJars(serverDir, subdir string) ([]fiber.Map, error) {
+type InstalledJarInfo struct {
+	FileName      string `json:"file_name"`
+	Name          string `json:"name"`
+	Version       string `json:"version"`
+	Size          string `json:"size"`
+	Source        string `json:"source"`
+	ProjectID     string `json:"projectId,omitempty"`
+	Slug          string `json:"slug,omitempty"`
+	HasUpdate     bool   `json:"hasUpdate"`
+	LatestVersion string `json:"latestVersion"`
+}
+
+func installedJars(serverDir, subdir string) ([]InstalledJarInfo, error) {
 	dir := filepath.Join(serverDir, subdir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []fiber.Map{}, nil
+			return []InstalledJarInfo{}, nil
 		}
 		return nil, err
 	}
 
-	var items []fiber.Map
+	var items []InstalledJarInfo
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".jar") {
 			continue
@@ -604,18 +616,96 @@ func installedJars(serverDir, subdir string) ([]fiber.Map, error) {
 		if info != nil {
 			size = formatBytes(info.Size())
 		}
-		items = append(items, fiber.Map{
-			"file_name": entry.Name(),
-			"name":      strings.TrimSuffix(entry.Name(), ".jar"),
-			"version":   "unknown",
-			"size":      size,
-			"source":    "Local",
+		items = append(items, InstalledJarInfo{
+			FileName:      entry.Name(),
+			Name:          strings.TrimSuffix(entry.Name(), ".jar"),
+			Version:       "unknown",
+			Size:          size,
+			Source:        "Local",
+			HasUpdate:     false,
+			LatestVersion: "",
 		})
 	}
 	if items == nil {
-		items = []fiber.Map{}
+		items = []InstalledJarInfo{}
 	}
 	return items, nil
+}
+
+func checkModrinthUpdates(items []InstalledJarInfo) ([]InstalledJarInfo, error) {
+	result := make([]InstalledJarInfo, len(items))
+	copy(result, items)
+
+	for i, item := range items {
+		slug := strings.TrimSuffix(item.FileName, ".jar")
+		versions, err := modrinthVersions(slug)
+		if err != nil {
+			continue
+		}
+		if len(versions) == 0 {
+			continue
+		}
+		latest := versions[0].VersionNumber
+		result[i].LatestVersion = latest
+		result[i].ProjectID = slug
+		if item.Version != "unknown" && item.Version != latest {
+			result[i].HasUpdate = true
+		}
+	}
+
+	return result, nil
+}
+
+func checkPluginUpdatesRemote(items []InstalledJarInfo) ([]InstalledJarInfo, error) {
+	result := make([]InstalledJarInfo, len(items))
+	copy(result, items)
+
+	for i, item := range items {
+		slug := strings.TrimSuffix(item.FileName, ".jar")
+
+		// Try Modrinth first
+		mrVersions, err := modrinthVersions(slug)
+		if err == nil && len(mrVersions) > 0 {
+			latest := mrVersions[0].VersionNumber
+			result[i].LatestVersion = latest
+			result[i].ProjectID = slug
+			result[i].Source = "Modrinth"
+			if item.Version != "unknown" && item.Version != latest {
+				result[i].HasUpdate = true
+			}
+			continue
+		}
+
+		// Try Hangar
+		var hgResult struct {
+			Result []struct {
+				Slug       string `json:"slug"`
+				VersionTag string `json:"version_tag"`
+			} `json:"result"`
+		}
+		resp, err := httpClient.R().SetResult(&hgResult).Get(
+			"https://hangar.papermc.io/api/v1/projects/" + slug)
+		if err == nil && resp.IsSuccess() && len(hgResult.Result) > 0 {
+			latest := hgResult.Result[0].VersionTag
+			result[i].LatestVersion = latest
+			result[i].Slug = slug
+			result[i].Source = "Hangar"
+			if item.Version != "unknown" && item.Version != latest {
+				result[i].HasUpdate = true
+			}
+			continue
+		}
+	}
+
+	return result, nil
+}
+
+func modrinthDownloadLatest(projectID, modsDir string) (string, error) {
+	return modrinthDownload(projectID, "", modsDir)
+}
+
+func pluginDownloadLatest(slug, source, pluginsDir string) (string, error) {
+	return pluginDownload(slug, "", source, pluginsDir)
 }
 
 // ── Paper ────────────────────────────────────────────────────────────────

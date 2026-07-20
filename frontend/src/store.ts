@@ -269,6 +269,7 @@ export interface Store {
   whitelistPlayers: WhitelistEntry[]
   logs: LogEntry[]
   serverProps: ServerProps
+  jvmSettings: JVMSettings
   worlds: World[]
   installedModLoader: InstalledModLoader
   installedMods: InstalledMod[]
@@ -373,6 +374,7 @@ export const store = reactive<Store>({
   whitelistPlayers: [],
   logs: [],
   serverProps: defaultProps(),
+  jvmSettings: defaultJVMSettings(),
   worlds: [],
   installedModLoader: null,
   installedMods: [],
@@ -619,13 +621,13 @@ export const store = reactive<Store>({
         id: item.file_name,
         name: item.name ?? item.file_name,
         version: item.version,
-        latestVersion: item.version,
+        latestVersion: item.latestVersion || item.version,
         author: '',
         description: '',
         category: 'Utility' as ItemCategory,
         loader: 'Fabric' as ModLoaderType,
         fileSize: item.size,
-        status: 'enabled' as ItemStatus,
+        status: item.hasUpdate ? 'update-available' as ItemStatus : 'enabled' as ItemStatus,
         source: (item.source as ModSource) ?? 'Local',
         icon: '📦',
         fileName: item.file_name,
@@ -642,13 +644,13 @@ export const store = reactive<Store>({
         id: item.file_name,
         name: item.name ?? item.file_name,
         version: item.version,
-        latestVersion: item.version,
+        latestVersion: item.latestVersion || item.version,
         author: '',
         description: '',
         category: 'Utility' as ItemCategory,
         loader: 'Paper' as PluginLoaderType,
         fileSize: item.size,
-        status: 'enabled' as ItemStatus,
+        status: item.hasUpdate ? 'update-available' as ItemStatus : 'enabled' as ItemStatus,
         source: (item.source as ModSource) ?? 'Local',
         icon: '📦',
         fileName: item.file_name,

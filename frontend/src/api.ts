@@ -68,6 +68,7 @@ export interface PluginSearchItem {
 
 export interface InstalledItem {
   file_name: string; name: string; version: string; size: string; source: string
+  projectId?: string; slug?: string; hasUpdate: boolean; latestVersion: string
 }
 
 export interface WorldItem {
@@ -138,6 +139,10 @@ export const api = {
   downloadMod: (projectId: string, versionId?: string) =>
     apiVoid('/api/mods/download', { method: 'POST', body: JSON.stringify({ projectId, versionId }) }),
   getInstalledMods: () => apiFetch<InstalledItem[]>('/api/mods/installed'),
+
+  checkModUpdates: () => apiFetch<InstalledItem[]>('/api/mods/updates'),
+  updateMod: (projectId: string, fileName: string) =>
+    apiFetch<{ path: string }>('/api/mods/update', { method: 'POST', body: JSON.stringify({ projectId, fileName }) }),
   deleteMod: (fileName: string) => apiVoid('/api/mods/delete', { method: 'POST', body: JSON.stringify({ fileName }) }),
 
   // Plugins
@@ -146,12 +151,37 @@ export const api = {
   downloadPlugin: (slug: string, version?: string, source?: string) =>
     apiVoid('/api/plugins/download', { method: 'POST', body: JSON.stringify({ slug, version, source }) }),
   getInstalledPlugins: () => apiFetch<InstalledItem[]>('/api/plugins/installed'),
+
+  checkPluginUpdates: () => apiFetch<InstalledItem[]>('/api/plugins/updates'),
+  updatePlugin: (slug: string, fileName: string, source: string) =>
+    apiFetch<{ path: string }>('/api/plugins/update', { method: 'POST', body: JSON.stringify({ slug, fileName, source }) }),
   deletePlugin: (fileName: string) => apiVoid('/api/plugins/delete', { method: 'POST', body: JSON.stringify({ fileName }) }),
 
   // Aliases for compatibility with page imports
   getServerDirPath: () => apiFetch<string>('/api/server/dir'),
   getServerJarPath: () => apiFetch<string>('/api/server/jar'),
   openServerFolder: () => apiVoid('/api/folder/open', { method: 'POST', body: JSON.stringify({ path: '' }) }),
+
+  // Worlds
+  getWorlds: () => apiFetch<WorldItem[]>('/api/worlds'),
+  loadWorld: (name: string) =>
+    apiFetch<{ active: string }>('/api/worlds/load', { method: 'POST', body: JSON.stringify({ name }) }),
+  backupWorld: (name: string) =>
+    apiFetch<{ path: string; name: string }>('/api/worlds/backup', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteWorld: (name: string) =>
+    apiVoid(`/api/worlds/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
+  // Players
+  getPlayers: () => apiFetch<{ total: number; players: string[] }>('/api/players'),
+  getOps: () => apiFetch<PlayerEntry[]>('/api/players/ops'),
+  opPlayer: (name: string) => apiVoid('/api/players/op', { method: 'POST', body: JSON.stringify({ name }) }),
+  deopPlayer: (name: string) => apiVoid('/api/players/deop', { method: 'POST', body: JSON.stringify({ name }) }),
+  kickPlayer: (name: string) => apiVoid('/api/players/kick', { method: 'POST', body: JSON.stringify({ name }) }),
+  banPlayer: (name: string) => apiVoid('/api/players/ban', { method: 'POST', body: JSON.stringify({ name }) }),
+  pardonPlayer: (name: string) => apiVoid('/api/players/pardon', { method: 'POST', body: JSON.stringify({ name }) }),
+  getWhitelist: () => apiFetch<PlayerEntry[]>('/api/players/whitelist'),
+  whitelistAdd: (name: string) => apiVoid('/api/players/whitelist/add', { method: 'POST', body: JSON.stringify({ name }) }),
+  whitelistRemove: (name: string) => apiVoid('/api/players/whitelist/remove', { method: 'POST', body: JSON.stringify({ name }) }),
 
   // Server versions
   getPaperBuilds: (mcVersion: string) => apiFetch<number[]>('/api/versions/paper/' + mcVersion + '/builds'),

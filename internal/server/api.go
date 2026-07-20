@@ -41,11 +41,15 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/mods/download", h.downloadMod)
 	g.Get("/mods/installed", h.installedMods)
 	g.Post("/mods/delete", h.deleteMod)
+	g.Get("/mods/updates", h.checkModUpdates)
+	g.Post("/mods/update", h.updateMod)
 
 	g.Post("/plugins/search", h.searchPlugins)
 	g.Post("/plugins/download", h.downloadPlugin)
 	g.Get("/plugins/installed", h.installedPlugins)
 	g.Post("/plugins/delete", h.deletePlugin)
+	g.Get("/plugins/updates", h.checkPluginUpdates)
+	g.Post("/plugins/update", h.updatePlugin)
 
 	g.Get("/versions/paper/:mcVersion/builds", h.paperBuilds)
 	g.Get("/versions/paper/:mcVersion/build/:build/url", h.paperDownloadURL)
@@ -342,6 +346,64 @@ func (h Handler) deletePlugin(c *fiber.Ctx) error {
 	c.BodyParser(&body)
 	os.Remove(filePath(h.cfg.ServerDir, "plugins", body.FileName))
 	return c.JSON(fiber.Map{"status": "deleted"})
+}
+
+func (h Handler) checkModUpdates(c *fiber.Ctx) error {
+	items, err := installedJars(h.cfg.ServerDir, "mods")
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	result, err := checkModrinthUpdates(items)
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	return c.JSON(result)
+}
+
+func (h Handler) updateMod(c *fiber.Ctx) error {
+	var body struct {
+		ProjectID string `json:"projectId"`
+		FileName  string `json:"fileName"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return errorResp(c, 400, err)
+	}
+	path, err := modrinthDownloadLatest(body.ProjectID, filePath(h.cfg.ServerDir, "mods"))
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	// Remove old file
+	os.Remove(filePath(h.cfg.ServerDir, "mods", body.FileName))
+	return c.JSON(fiber.Map{"path": path})
+}
+
+func (h Handler) checkPluginUpdates(c *fiber.Ctx) error {
+	items, err := installedJars(h.cfg.ServerDir, "plugins")
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	result, err := checkPluginUpdatesRemote(items)
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	return c.JSON(result)
+}
+
+func (h Handler) updatePlugin(c *fiber.Ctx) error {
+	var body struct {
+		Slug     string `json:"slug"`
+		FileName string `json:"fileName"`
+		Source   string `json:"source"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return errorResp(c, 400, err)
+	}
+	path, err := pluginDownloadLatest(body.Slug, body.Source, filePath(h.cfg.ServerDir, "plugins"))
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	os.Remove(filePath(h.cfg.ServerDir, "plugins", body.FileName))
+	return c.JSON(fiber.Map{"path": path})
 }
 
 // ── Versions ───────────────────────────────────────────────────────────────

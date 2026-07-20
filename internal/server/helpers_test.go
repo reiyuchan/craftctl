@@ -178,8 +178,8 @@ func TestInstalledJars_WithFiles(t *testing.T) {
 	if len(items) != 1 {
 		t.Errorf("installedJars items = %d, want 1", len(items))
 	}
-	if items[0]["file_name"] != "testmod.jar" {
-		t.Errorf("file_name = %q, want %q", items[0]["file_name"], "testmod.jar")
+	if items[0].FileName != "testmod.jar" {
+		t.Errorf("file_name = %q, want %q", items[0].FileName, "testmod.jar")
 	}
 }
 

@@ -345,9 +345,16 @@ export default defineComponent({
                 this.$emit('toast', { msg: `Install failed: ${e}`, type: 'danger' })
             }
         },
-        updateItem(plugin: InstalledPlugin): void {
-            plugin.version = plugin.latestVersion; plugin.status = 'enabled'
-            this.$emit('toast', { msg: `${plugin.name} updated to v${plugin.latestVersion}`, type: 'success' })
+        async updateItem(plugin: InstalledPlugin): Promise<void> {
+            try {
+                this.$emit('toast', { msg: `Downloading ${plugin.name} v${plugin.latestVersion}...`, type: 'success' })
+                await api.updatePlugin(plugin.id, plugin.fileName, plugin.source)
+                plugin.version = plugin.latestVersion
+                plugin.status = 'enabled'
+                this.$emit('toast', { msg: `${plugin.name} updated to v${plugin.latestVersion}`, type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Update failed: ${e}`, type: 'danger' })
+            }
         },
         async doUninstall(): Promise<void> {
             if (!this.confirmTarget) return
@@ -368,11 +375,21 @@ export default defineComponent({
                 this.$emit('toast', { msg: `Could not open folder: ${e}`, type: 'danger' })
             }
         },
-        checkUpdates(): void {
+        async checkUpdates(): Promise<void> {
             this.$emit('toast', { msg: 'Checking for updates...', type: 'success' })
-            this.store.fetchInstalledPlugins().then(() => {
+            try {
+                const items = await api.checkPluginUpdates()
+                for (const item of items) {
+                    const existing = this.store.installedPlugins.find(p => p.id === item.file_name)
+                    if (existing) {
+                        existing.latestVersion = item.latestVersion
+                        existing.status = item.hasUpdate ? 'update-available' : 'enabled'
+                    }
+                }
                 this.$emit('toast', { msg: `${this.updatesAvailable} update(s) available`, type: this.updatesAvailable > 0 ? 'warn' : 'success' })
-            })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Update check failed: ${e}`, type: 'danger' })
+            }
         },
         handleDrop(e: DragEvent): void {
             this.isDragging = false
