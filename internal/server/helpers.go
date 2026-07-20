@@ -21,11 +21,11 @@ var (
 )
 
 var httpClient = resty.New().
-	SetHeader("User-Agent", "craftctl/0.1.0").
+	SetHeader("User-Agent", "craftctl/0.2.0").
 	SetTimeout(30_000_000_000)
 
 var downloadClient = resty.New().
-	SetHeader("User-Agent", "craftctl/0.1.0").
+	SetHeader("User-Agent", "craftctl/0.2.0").
 	SetTimeout(0) // no timeout — TCP keepalive handles dead connections
 
 // ── HTTP helpers ───────────────────────────────────────────────────────────
