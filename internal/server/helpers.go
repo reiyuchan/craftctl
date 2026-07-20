@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -289,22 +290,29 @@ type modSearchReq struct {
 	GameVersion string   `json:"gameVersion"`
 }
 
-func modrinthSearch(query string, loaders []string, gameVersion string) ([]fiber.Map, error) {
-	var facets []string
+func buildModrinthFacets(loaders []string, gameVersion string) [][]string {
+	var facets [][]string
 	if len(loaders) > 0 {
-		lfs := make([]string, len(loaders))
+		loaderFacets := make([]string, len(loaders))
 		for i, l := range loaders {
-			lfs[i] = fmt.Sprintf("categories:%s", strings.ToLower(l))
+			loaderFacets[i] = fmt.Sprintf("categories:%s", strings.ToLower(l))
 		}
-		facets = append(facets, fmt.Sprintf("(%s)", strings.Join(lfs, ",")))
+		facets = append(facets, loaderFacets)
 	}
 	if gameVersion != "" {
-		facets = append(facets, fmt.Sprintf("(versions:%s)", gameVersion))
+		facets = append(facets, []string{fmt.Sprintf("versions:%s", gameVersion)})
 	}
+	return facets
+}
 
+func modrinthSearch(query string, loaders []string, gameVersion string) ([]fiber.Map, error) {
 	params := map[string]string{"query": query, "limit": "30"}
-	if len(facets) > 0 {
-		params["facets"] = strings.Join(facets, "")
+	if facets := buildModrinthFacets(loaders, gameVersion); len(facets) > 0 {
+		b, err := json.Marshal(facets)
+		if err != nil {
+			return nil, fmt.Errorf("modrinth facets marshal: %w", err)
+		}
+		params["facets"] = string(b)
 	}
 
 	var result modrinthSearchResult
@@ -342,6 +350,21 @@ func modrinthSearch(query string, loaders []string, gameVersion string) ([]fiber
 		}
 	}
 	return items, nil
+}
+
+func modrinthSearchURL(query string, loaders []string, gameVersion string) string {
+	base := "https://api.modrinth.com/v2/search"
+	params := map[string]string{"query": query, "limit": "30"}
+	if facets := buildModrinthFacets(loaders, gameVersion); len(facets) > 0 {
+		b, _ := json.Marshal(facets)
+		params["facets"] = string(b)
+	}
+	// Build URL manually to show the facets JSON for debugging
+	url := base + "?query=" + query + "&limit=30"
+	if f, ok := params["facets"]; ok {
+		url += "&facets=" + f
+	}
+	return url
 }
 
 type modrinthSearchResult struct {
