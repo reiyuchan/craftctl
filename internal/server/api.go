@@ -63,6 +63,10 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/versions/spigot", h.spigotInfo)
 
 	g.Post("/server/install", h.installServer)
+
+	g.Get("/events/server-log", h.events.Handler("server-log"))
+	g.Get("/events/server-stopped", h.events.Handler("server-stopped"))
+	g.Get("/events/server-error", h.events.Handler("server-error"))
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────

@@ -9,8 +9,8 @@ func TestNewServer(t *testing.T) {
 	if s == nil {
 		t.Fatal("New() returned nil")
 	}
-	if cap(s.output) != 256 {
-		t.Errorf("output channel cap = %d, want 256", cap(s.output))
+	if s.listeners == nil {
+		t.Error("listeners map is nil")
 	}
 }
 
@@ -21,12 +21,13 @@ func TestServerIsRunning(t *testing.T) {
 	}
 }
 
-func TestServerOutput(t *testing.T) {
+func TestServerSubscribe(t *testing.T) {
 	s := New()
-	ch := s.Output()
+	ch := s.Subscribe()
 	if ch == nil {
-		t.Error("Output() returned nil")
+		t.Error("Subscribe() returned nil")
 	}
+	s.Unsubscribe(ch)
 }
 
 func TestServerSendBeforeStart(t *testing.T) {

@@ -64,7 +64,9 @@ func (ws *WebSocket) handle(c *websocket.Conn) {
 }
 
 func (ws *WebSocket) streamToClient(c *websocket.Conn) {
-	for line := range ws.server.Output() {
+	ch := ws.server.Subscribe()
+	defer ws.server.Unsubscribe(ch)
+	for line := range ch {
 		if err := c.WriteMessage(websocket.TextMessage, []byte(line)); err != nil {
 			return
 		}

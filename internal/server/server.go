@@ -18,6 +18,7 @@ type Server struct {
 	logger *zap.Logger
 	mc     *mc.Server
 	ws     *WebSocket
+	events *EventHub
 }
 
 func New(cfg config.Config) *Server {
@@ -29,9 +30,10 @@ func New(cfg config.Config) *Server {
 	app.Use("/", ui.Handler())
 
 	mcServer := mc.New()
+	events := NewEventHub(mcServer, l)
 	ws := NewWebSocket(l, mcServer)
 
-	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws}
+	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events}
 
 	h := newHandler(s)
 	h.routes(app)
