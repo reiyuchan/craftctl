@@ -64,6 +64,8 @@ func (h Handler) routes(app *fiber.App) {
 
 	g.Post("/server/install", h.installServer)
 
+	h.registerPlayerRoutes(g)
+
 	g.Get("/events/server-log", h.events.Handler("server-log"))
 	g.Get("/events/server-stopped", h.events.Handler("server-stopped"))
 	g.Get("/events/server-error", h.events.Handler("server-error"))

@@ -36,6 +36,11 @@ export interface Player {
   lastSeen: string
   playtime: string
 }
+export interface WhitelistEntry {
+  name: string
+  uuid: string
+}
+
 
 export type LogLevel = 'INFO' | 'WARN' | 'ERROR'
 
@@ -84,6 +89,8 @@ export interface World {
   seed: string
   active: boolean
   gradient: string
+  loading?: boolean
+  backingUp?: boolean
 }
 
 export type ModLoaderType = 'Fabric' | 'Forge' | 'NeoForge'
@@ -251,6 +258,7 @@ export interface Store {
   onlinePlayers: OnlinePlayer[]
   maxPlayers: number
   allPlayers: Player[]
+  whitelistPlayers: WhitelistEntry[]
   logs: LogEntry[]
   serverProps: ServerProps
   worlds: World[]
@@ -294,6 +302,30 @@ export interface Store {
   fetchInstalledPlugins(): Promise<void>
   fetchServerProps(): Promise<void>
   fetchServerInfo(): Promise<void>
+
+  fetchWorlds(): Promise<void>
+  loadWorld(name: string): Promise<void>
+  backupWorld(name: string): Promise<void>
+  deleteWorld(name: string): Promise<void>
+  fetchPlayers(): Promise<void>
+  fetchOps(): Promise<void>
+  opPlayer(name: string): Promise<void>
+  deopPlayer(name: string): Promise<void>
+  kickPlayerAction(name: string): Promise<void>
+  banPlayerAction(name: string): Promise<void>
+  pardonPlayer(name: string): Promise<void>
+  fetchWhitelist(): Promise<void>
+  addToWhitelist(name: string): Promise<void>
+  removeFromWhitelist(name: string): Promise<void>
+}
+
+
+function hashCode(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0
+  }
+  return Math.abs(h)
 }
 
 const defaultProps = (): ServerProps => ({
@@ -322,6 +354,7 @@ export const store = reactive<Store>({
   onlinePlayers: [],
   maxPlayers: 20,
   allPlayers: [],
+  whitelistPlayers: [],
   logs: [],
   serverProps: defaultProps(),
   worlds: [],
@@ -643,6 +676,190 @@ export const store = reactive<Store>({
       }
     } catch {
       // ignore
+    }
+  },
+
+  async fetchWorlds(): Promise<void> {
+    try {
+      const items = await api.getWorlds()
+      const gradients = [
+        'linear-gradient(135deg, #1a472a 0%, #2d6a4f 100%)',
+        'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+        'linear-gradient(135deg, #7c2d12 0%, #dc2626 100%)',
+        'linear-gradient(135deg, #581c87 0%, #9333ea 100%)',
+        'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
+      ]
+      this.worlds = items.map((w, i) => ({
+        name: w.name,
+        biome: w.active ? 'Active' : 'World',
+        size: w.size,
+        sizeBytes: w.sizeBytes,
+        modifiedDate: w.modifiedDate,
+        seed: '',
+        active: w.active,
+        gradient: gradients[i % gradients.length],
+      }))
+    } catch {
+      this.worlds = []
+    }
+  },
+
+  async loadWorld(name: string): Promise<void> {
+    try {
+      const world = this.worlds.find(w => w.name === name)
+      if (world) world.loading = true
+      await api.loadWorld(name)
+      this.worlds.forEach(w => { w.active = w.name === name })
+      this.addLog('INFO', 'info', `Loaded world: ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Failed to load world: ${e.message ?? e}`)
+      throw e
+    } finally {
+      const world = this.worlds.find(w => w.name === name)
+      if (world) world.loading = false
+    }
+  },
+
+  async backupWorld(name: string): Promise<void> {
+    try {
+      const world = this.worlds.find(w => w.name === name)
+      if (world) world.backingUp = true
+      const result = await api.backupWorld(name)
+      this.addLog('INFO', 'info', `Backup created: ${result.name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Backup failed: ${e.message ?? e}`)
+      throw e
+    } finally {
+      const world = this.worlds.find(w => w.name === name)
+      if (world) world.backingUp = false
+    }
+  },
+
+  async deleteWorld(name: string): Promise<void> {
+    try {
+      await api.deleteWorld(name)
+      this.worlds = this.worlds.filter(w => w.name !== name)
+      this.addLog('INFO', 'warn', `Deleted world: ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Delete failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchPlayers(): Promise<void> {
+    try {
+      const result = await api.getPlayers()
+      const ops = await api.getOps().catch(() => [])
+      const opNames = new Set(ops.map(o => o.name))
+      this.allPlayers = result.players.map(name => ({
+        name,
+        color: `hsl(${hashCode(name) % 360}, 50%, 45%)`,
+        online: true,
+        op: opNames.has(name),
+        lastSeen: '',
+        playtime: '',
+      }))
+      this.maxPlayers = result.total
+    } catch {
+      this.allPlayers = []
+    }
+  },
+
+  async fetchOps(): Promise<void> {
+    try {
+      const ops = await api.getOps()
+      const opNames = new Set(ops.map(o => o.name))
+      for (const player of this.allPlayers) {
+        player.op = opNames.has(player.name)
+      }
+    } catch {
+      // ignore
+    }
+  },
+
+  async opPlayer(name: string): Promise<void> {
+    try {
+      await api.opPlayer(name)
+      this.addLog('INFO', 'info', `Opped ${name}`)
+      await this.fetchOps()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Op failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async deopPlayer(name: string): Promise<void> {
+    try {
+      await api.deopPlayer(name)
+      this.addLog('INFO', 'info', `Deopped ${name}`)
+      await this.fetchOps()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Deop failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async kickPlayerAction(name: string): Promise<void> {
+    try {
+      await api.kickPlayer(name)
+      this.kickPlayer(name)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Kick failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async banPlayerAction(name: string): Promise<void> {
+    try {
+      await api.banPlayer(name)
+      this.addLog('INFO', 'warn', `Banned ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Ban failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async pardonPlayer(name: string): Promise<void> {
+    try {
+      await api.pardonPlayer(name)
+      this.addLog('INFO', 'info', `Pardoned ${name}`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Pardon failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchWhitelist(): Promise<void> {
+    try {
+      const list = await api.getWhitelist()
+      this.whitelistPlayers = list.map(e => ({
+        name: e.name,
+        uuid: e.uuid ?? '',
+      }))
+    } catch {
+      this.whitelistPlayers = []
+    }
+  },
+
+  async addToWhitelist(name: string): Promise<void> {
+    try {
+      await api.whitelistAdd(name)
+      this.addLog('INFO', 'info', `Added ${name} to whitelist`)
+      await this.fetchWhitelist()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Whitelist add failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async removeFromWhitelist(name: string): Promise<void> {
+    try {
+      await api.whitelistRemove(name)
+      this.addLog('INFO', 'warn', `Removed ${name} from whitelist`)
+      await this.fetchWhitelist()
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Whitelist remove failed: ${e.message ?? e}`)
+      throw e
     }
   },
 })
