@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+const maxLogLines = 10000
+
 type Server struct {
 	cmd       *exec.Cmd
 	stdin     io.WriteCloser
@@ -15,6 +17,8 @@ type Server struct {
 	callbacks map[chan string]struct{}
 	cbMu      sync.Mutex
 	done      chan struct{}
+	logBuf    []string
+	logMu     sync.Mutex
 }
 
 func New() *Server {
@@ -54,6 +58,13 @@ func (s *Server) UnregisterCallback(ch chan string) {
 }
 
 func (s *Server) broadcast(line string) {
+	s.logMu.Lock()
+	s.logBuf = append(s.logBuf, line)
+	if len(s.logBuf) > maxLogLines {
+		s.logBuf = s.logBuf[len(s.logBuf)-maxLogLines:]
+	}
+	s.logMu.Unlock()
+
 	s.lmu.RLock()
 	defer s.lmu.RUnlock()
 	for ch := range s.listeners {
@@ -194,6 +205,14 @@ func (s *Server) IsRunning() bool {
 	defer s.mu.RUnlock()
 
 	return s.cmd != nil && s.cmd.Process != nil
+}
+
+func (s *Server) GetLogs() []string {
+	s.logMu.Lock()
+	defer s.logMu.Unlock()
+	out := make([]string, len(s.logBuf))
+	copy(out, s.logBuf)
+	return out
 }
 
 func (s *Server) PID() int {

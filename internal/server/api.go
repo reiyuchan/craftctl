@@ -29,6 +29,8 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/server/start", h.startServer)
 	g.Post("/server/stop", h.stopServer)
 	g.Post("/server/command", h.sendCommand)
+	g.Get("/server/logs", h.getServerLogs)
+	g.Get("/server/logs/download", h.downloadServerLogs)
 	g.Get("/events/server-stats", h.events.Handler("server-stats"))
 	g.Get("/server/stats", h.getServerStats)
 
@@ -213,6 +215,18 @@ func (h Handler) sendCommand(c *fiber.Ctx) error {
 		return errorResp(c, 500, err)
 	}
 	return c.JSON(fiber.Map{"status": "sent"})
+}
+
+func (h Handler) getServerLogs(c *fiber.Ctx) error {
+	return c.JSON(h.mc.GetLogs())
+}
+
+func (h Handler) downloadServerLogs(c *fiber.Ctx) error {
+	logs := h.mc.GetLogs()
+	data := strings.Join(logs, "")
+	c.Set("Content-Type", "text/plain; charset=utf-8")
+	c.Set("Content-Disposition", `attachment; filename="server.log"`)
+	return c.SendString(data)
 }
 
 func (h Handler) getServerStats(c *fiber.Ctx) error {

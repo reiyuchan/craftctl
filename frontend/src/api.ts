@@ -121,6 +121,15 @@ export const api = {
     apiVoid('/api/server/start', { method: 'POST', body: JSON.stringify(opts) }),
   stopServer: () => apiVoid('/api/server/stop', { method: 'POST' }),
   sendCommand: (command: string) => apiVoid('/api/server/command', { method: 'POST', body: JSON.stringify({ command }) }),
+  getServerLogs: () => apiFetch<string[]>('/api/server/logs'),
+  downloadServerLogs: async (): Promise<Blob> => {
+    const res = await fetch(`${BASE}/api/server/logs/download`)
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(text || `HTTP ${res.status}`)
+    }
+    return res.blob()
+  },
   getActiveInfo: () => apiFetch<ServerInfo>('/api/server/info'),
 
   // Java

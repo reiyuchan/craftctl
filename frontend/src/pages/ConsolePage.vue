@@ -5,6 +5,7 @@
             <div class="card-header">
                 <span class="card-title">SERVER CONSOLE</span>
                 <div class="console-controls">
+                    <button class="icon-btn" @click="downloadLogs" title="Download logs">⬇ log</button>
                     <button class="icon-btn" @click="clearConsole" title="Clear">🗑</button>
                     <button class="icon-btn" @click="scrollToBottom" title="Scroll to bottom">⬇</button>
                     <div class="log-filter">
@@ -74,6 +75,21 @@ export default {
         },
         clearConsole() {
             this.store.logs = []
+        },
+        async downloadLogs() {
+            try {
+                const blob = await api.downloadServerLogs()
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'server.log'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                URL.revokeObjectURL(url)
+            } catch (e) {
+                this.store.addLog('ERROR', 'error', `Download failed: ${e}`)
+            }
         },
         scrollToBottom() {
             this.$nextTick(() => {
