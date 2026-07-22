@@ -97,6 +97,15 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/events/server-log", h.events.Handler("server-log"))
 	g.Get("/events/server-stopped", h.events.Handler("server-stopped"))
 	g.Get("/events/server-error", h.events.Handler("server-error"))
+
+	g.Get("/server/properties", h.getServerProperties)
+	g.Put("/server/properties", h.updateServerProperties)
+
+	g.Get("/files", h.listFiles)
+	g.Get("/files/read", h.readFile)
+	g.Put("/files/write", h.writeFile)
+	g.Delete("/files", h.deleteFile)
+	g.Post("/files/mkdir", h.makeDir)
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────
