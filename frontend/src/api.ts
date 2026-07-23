@@ -114,6 +114,8 @@ export interface ScheduledTask {
   enabled: boolean
   lastRun: string
   nextRun: string
+  backupType: string
+  retentionCount: number
 }
 
 export interface BackupInfo {
@@ -211,9 +213,9 @@ export const api = {
 
   // Scheduler
   getScheduledTasks: () => apiFetch<ScheduledTask[]>('/api/scheduler/tasks'),
-  createScheduledTask: (task: { name: string; type: string; interval: string }) =>
+  createScheduledTask: (task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number }) =>
     apiFetch<ScheduledTask>('/api/scheduler/tasks', { method: 'POST', body: JSON.stringify(task) }),
-  updateScheduledTask: (id: string, task: { name: string; type: string; interval: string; enabled: boolean }) =>
+  updateScheduledTask: (id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number }) =>
     apiVoid(`/api/scheduler/tasks/${id}`, { method: 'PUT', body: JSON.stringify(task) }),
   deleteScheduledTask: (id: string) =>
     apiVoid(`/api/scheduler/tasks/${id}`, { method: 'DELETE' }),
@@ -268,6 +270,19 @@ export const api = {
     }),
 
   getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }[] }>('/api/server/stats'),
+
+  listFiles: (path: string) =>
+    apiFetch<Array<{ name: string; isDir: boolean; size: number; modTime: string }>>(
+      `/api/files?path=${encodeURIComponent(path)}`),
+  readFile: (path: string) =>
+    apiFetch<{ path: string; content: string; size: number }>(
+      `/api/files/read?path=${encodeURIComponent(path)}`),
+  writeFile: (path: string, content: string) =>
+    apiVoid('/api/files/write', { method: 'PUT', body: JSON.stringify({ path, content }) }),
+  deleteFile: (path: string) =>
+    apiVoid(`/api/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
+  makeDir: (path: string) =>
+    apiVoid('/api/files/mkdir', { method: 'POST', body: JSON.stringify({ path }) }),
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────
