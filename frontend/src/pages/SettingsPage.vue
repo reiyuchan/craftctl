@@ -102,6 +102,17 @@
                     <button class="btn btn-sm btn-primary" @click="addTask">SAVE</button>
                     <button class="btn btn-sm btn-outline" @click="showAddTask = false">CANCEL</button>
                 </div>
+                <div v-if="newTask.type === 'backup'" class="task-form-row" style="margin-top: 8px">
+                    <select v-model="newTask.backupType" class="setting-select">
+                        <option value="full">Full Backup</option>
+                        <option value="world">World Only</option>
+                    </select>
+                    <div class="setting-info" style="margin: 0">
+                        <span class="setting-name">Retention Count</span>
+                        <span class="setting-desc">Max backups to keep (0 = unlimited)</span>
+                    </div>
+                    <input v-model.number="newTask.retentionCount" type="number" min="0" class="setting-input sm" />
+                </div>
             </div>
 
             <div class="settings-body">
@@ -111,7 +122,7 @@
                 <div v-for="task in store.scheduledTasks" :key="task.id" class="task-row">
                     <div class="task-info">
                         <span class="task-name">{{ task.name }}</span>
-                        <span class="task-meta">{{ task.type }} | {{ task.interval }}</span>
+                        <span class="task-meta">{{ task.type }} | {{ task.interval }}<span v-if="task.type === 'backup'"> | {{ task.backupType === 'full' ? 'Full' : 'World' }}<span v-if="task.retentionCount > 0"> | Keep {{ task.retentionCount }}</span></span></span>
                         <span class="task-meta" v-if="task.lastRun">Last: {{ formatTime(task.lastRun) }}</span>
                     </div>
                     <div class="task-controls">
@@ -139,6 +150,17 @@
                     <input v-model="editForm.interval" placeholder="Interval" class="setting-input" />
                     <button class="btn btn-sm btn-primary" @click="saveEdit">UPDATE</button>
                     <button class="btn btn-sm btn-outline" @click="editingTask = null">CANCEL</button>
+                </div>
+                <div v-if="editForm.type === 'backup'" class="task-form-row" style="margin-top: 8px">
+                    <select v-model="editForm.backupType" class="setting-select">
+                        <option value="full">Full Backup</option>
+                        <option value="world">World Only</option>
+                    </select>
+                    <div class="setting-info" style="margin: 0">
+                        <span class="setting-name">Retention Count</span>
+                        <span class="setting-desc">Max backups to keep (0 = unlimited)</span>
+                    </div>
+                    <input v-model.number="editForm.retentionCount" type="number" min="0" class="setting-input sm" />
                 </div>
             </div>
         </div>
@@ -188,9 +210,9 @@ export default {
                 javaPath: store.jvmSettings.javaPath,
             },
             showAddTask: false,
-            newTask: { name: '', type: 'backup', interval: '6h' },
+            newTask: { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0 },
             editingTask: null as any,
-            editForm: { name: '', type: 'backup', interval: '' },
+            editForm: { name: '', type: 'backup', interval: '', backupType: 'full', retentionCount: 0 },
             settingsSections: [
                 {
                     title: 'GENERAL',
@@ -276,7 +298,7 @@ export default {
             try {
                 await store.createScheduledTask(this.newTask)
                 this.showAddTask = false
-                this.newTask = { name: '', type: 'backup', interval: '6h' }
+                this.newTask = { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0 }
                 this.$emit('toast', { msg: 'Task created!', type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
@@ -300,7 +322,7 @@ export default {
         },
         editTask(task: any) {
             this.editingTask = task
-            this.editForm = { name: task.name, type: task.type, interval: task.interval }
+            this.editForm = { name: task.name, type: task.type, interval: task.interval, backupType: task.backupType || 'full', retentionCount: task.retentionCount || 0 }
         },
         async saveEdit() {
             if (!this.editingTask) return

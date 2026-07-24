@@ -1,10 +1,13 @@
 package server
 
 import (
+	"archive/zip"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,13 +15,15 @@ import (
 )
 
 type ScheduledTask struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Type     string `json:"type"`
-	Interval string `json:"interval"`
-	Enabled  bool   `json:"enabled"`
-	LastRun  string `json:"lastRun"`
-	NextRun  string `json:"nextRun"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Type           string `json:"type"`
+	Interval       string `json:"interval"`
+	Enabled        bool   `json:"enabled"`
+	LastRun        string `json:"lastRun"`
+	NextRun        string `json:"nextRun"`
+	BackupType     string `json:"backupType"`
+	RetentionCount int    `json:"retentionCount"`
 }
 
 type Scheduler struct {
@@ -146,7 +151,7 @@ func (s *Scheduler) executeTask(t *ScheduledTask) {
 	s.logger.Info("executing scheduled task", zap.String("name", t.Name), zap.String("type", t.Type))
 	switch t.Type {
 	case "backup":
-		s.runBackup()
+		s.runBackup(t)
 	case "restart":
 		s.runRestart()
 	case "stop":
@@ -154,7 +159,7 @@ func (s *Scheduler) executeTask(t *ScheduledTask) {
 	}
 }
 
-func (s *Scheduler) runBackup() {
+func (s *Scheduler) runBackup(t *ScheduledTask) {
 	if s.mc == nil {
 		return
 	}
@@ -168,21 +173,132 @@ func (s *Scheduler) runBackup() {
 	if worldName == "" {
 		worldName = "world"
 	}
-	worldPath := filepath.Join(serverDir, worldName)
-	if !existsFile(filepath.Join(worldPath, "level.dat")) {
-		s.logger.Error("scheduler backup: world not found", zap.String("world", worldName))
-		return
-	}
+
 	backupDir := filepath.Join(serverDir, "backups")
-	os.MkdirAll(backupDir, 0o755)
-	timestamp := time.Now().Format("2006-01-02_15-04-05")
-	zipName := fmt.Sprintf("%s_%s.zip", worldName, timestamp)
-	zipPath := filepath.Join(backupDir, zipName)
-	if err := zipDir(worldPath, zipPath); err != nil {
-		s.logger.Error("scheduler backup: create zip", zap.Error(err))
+	if err := os.MkdirAll(backupDir, 0o755); err != nil {
+		s.logger.Error("scheduler backup: create backup dir", zap.Error(err))
 		return
 	}
-	s.logger.Info("scheduled backup completed", zap.String("path", zipPath))
+
+	backupType := t.BackupType
+	if backupType == "" {
+		backupType = "full"
+	}
+
+	timestamp := time.Now().Format("2006-01-02_15-04-05")
+
+	if backupType == "full" {
+		zipName := fmt.Sprintf("full_%s.zip", timestamp)
+		zipPath := filepath.Join(backupDir, zipName)
+
+		zipFile, err := os.Create(zipPath)
+		if err != nil {
+			s.logger.Error("scheduler backup: create zip", zap.Error(err))
+			return
+		}
+		defer zipFile.Close()
+
+		w := zip.NewWriter(zipFile)
+		defer w.Close()
+
+		dirsToBackup := []string{"world", "world_nether", "world_the_end"}
+		filesToBackup := []string{"server.properties"}
+
+		for _, dir := range dirsToBackup {
+			dirPath := filepath.Join(serverDir, dir)
+			if existsDir(dirPath) {
+				if err := addDirToZip(w, serverDir, dirPath); err != nil {
+					s.logger.Error("scheduler backup: zip dir", zap.String("dir", dir), zap.Error(err))
+					return
+				}
+			}
+		}
+
+		for _, f := range filesToBackup {
+			fPath := filepath.Join(serverDir, f)
+			if existsFile(fPath) {
+				addFileToZip(w, serverDir, fPath)
+			}
+		}
+
+		for _, dir := range []string{"mods", "plugins"} {
+			dirPath := filepath.Join(serverDir, dir)
+			if existsDir(dirPath) {
+				addDirToZip(w, serverDir, dirPath)
+			}
+		}
+
+		s.logger.Info("scheduled full backup completed", zap.String("path", zipPath))
+	} else {
+		worldPath := filepath.Join(serverDir, worldName)
+		if !existsFile(filepath.Join(worldPath, "level.dat")) {
+			s.logger.Error("scheduler backup: world not found", zap.String("world", worldName))
+			return
+		}
+		zipName := fmt.Sprintf("%s_%s.zip", worldName, timestamp)
+		zipPath := filepath.Join(backupDir, zipName)
+		if err := zipDir(worldPath, zipPath); err != nil {
+			s.logger.Error("scheduler backup: create zip", zap.Error(err))
+			return
+		}
+		s.logger.Info("scheduled world backup completed", zap.String("path", zipPath))
+	}
+
+	if t.RetentionCount > 0 {
+		s.enforceRetention(backupDir, backupType, t.RetentionCount)
+	}
+}
+
+func (s *Scheduler) enforceRetention(backupDir, backupType string, maxKeep int) {
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		s.logger.Error("scheduler retention: read dir", zap.Error(err))
+		return
+	}
+
+	type backupEntry struct {
+		name string
+		mod  time.Time
+	}
+	var matches []backupEntry
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".zip") {
+			continue
+		}
+		if backupType == "full" {
+			if !strings.HasPrefix(entry.Name(), "full_") {
+				continue
+			}
+		} else {
+			if strings.HasPrefix(entry.Name(), "full_") {
+				continue
+			}
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		matches = append(matches, backupEntry{name: entry.Name(), mod: info.ModTime()})
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		return matches[i].mod.After(matches[j].mod)
+	})
+
+	if len(matches) <= maxKeep {
+		return
+	}
+
+	toDelete := matches[maxKeep:]
+	for _, b := range toDelete {
+		path := filepath.Join(backupDir, b.name)
+		if err := os.Remove(path); err != nil {
+			s.logger.Error("scheduler retention: delete", zap.String("file", b.name), zap.Error(err))
+		} else {
+			s.logger.Info("scheduler retention: deleted old backup", zap.String("file", b.name))
+		}
+	}
 }
 
 func (s *Scheduler) runRestart() {
@@ -252,6 +368,8 @@ func (s *Scheduler) UpdateTask(id string, update ScheduledTask) error {
 			s.tasks[i].Type = update.Type
 			s.tasks[i].Interval = update.Interval
 			s.tasks[i].Enabled = update.Enabled
+			s.tasks[i].BackupType = update.BackupType
+			s.tasks[i].RetentionCount = update.RetentionCount
 			s.recalcNextRuns()
 			s.save()
 			return nil
