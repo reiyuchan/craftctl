@@ -102,9 +102,9 @@ export default {
         { id: 'plugins', icon: '🔌', label: 'Plugins', subtitle: 'Paper / Spigot / Purpur', component: PluginsPage },
         { id: 'versions', icon: '📦', label: 'Versions', subtitle: 'Server jar downloads', component: ServerVersionsPage },
         { id: 'java', icon: '☕', label: 'Java', subtitle: 'Java runtime manager', component: JavaPage },
-        { id: 'settings', icon: '⚙', label: 'Settings', subtitle: 'Server & JVM config', component: SettingsPage },
         { id: 'properties', icon: '📝', label: 'Properties', subtitle: 'Edit server.properties', component: PropertiesPage },
         { id: 'files', icon: '📁', label: 'Files', subtitle: 'Browse server files', component: FileManagerPage },
+        { id: 'settings', icon: '⚙', label: 'Settings', subtitle: 'Server & JVM config', component: SettingsPage },
       ],
     }
   },
