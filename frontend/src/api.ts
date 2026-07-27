@@ -309,6 +309,18 @@ export const api = {
     apiVoid('/api/webhook', { method: 'PUT', body: JSON.stringify(cfg) }),
   testWebhook: () =>
     apiVoid('/api/webhook/test', { method: 'POST' }),
+
+  // ── Config Export/Import ──────────────────────────────────────────────────
+  exportConfig: async () => {
+    const res = await fetch(`${BASE}/api/config/export`)
+    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))
+    return res.blob()
+  },
+  importConfig: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return apiJson<{ status: string; files: string[] }>('/api/config/import', { method: 'POST', body: fd })
+  },
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────

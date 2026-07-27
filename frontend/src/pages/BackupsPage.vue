@@ -58,11 +58,48 @@
             </div>
         </div>
 
+        <div class="config-section card settings-card">
+            <div class="card-header">
+                <span class="card-title">CONFIG EXPORT / IMPORT</span>
+            </div>
+            <div class="settings-body">
+                <div class="config-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Export</span>
+                        <span class="setting-desc">Download server.properties, eula.txt, scheduler.json as zip</span>
+                    </div>
+                    <button class="btn btn-primary" @click="handleExportConfig" :disabled="exportingConfig">
+                        {{ exportingConfig ? 'Exporting...' : 'EXPORT' }}
+                    </button>
+                </div>
+                <div class="config-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Import</span>
+                        <span class="setting-desc">Upload a previously exported zip to restore config files</span>
+                    </div>
+                    <div class="config-import-row">
+                        <label class="file-label">
+                            <input type="file" accept=".zip" @change="onConfigFileChange" ref="configFileInput" style="display:none" />
+                            <span class="btn btn-outline">{{ configFileName || 'Choose zip...' }}</span>
+                        </label>
+                        <button class="btn btn-primary" :disabled="!configFile || importingConfig" @click="handleImportConfig">
+                            {{ importingConfig ? 'Importing...' : 'IMPORT' }}
+                        </button>
+                    </div>
+                </div>
+                <div v-if="importedFiles.length" class="config-result">
+                    <span class="result-label">Extracted:</span>
+                    <span v-for="f in importedFiles" :key="f" class="result-file">{{ f }}</span>
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
 
 <script>
 import { store } from '../store.js'
+import { api } from '../api.js'
 
 export default {
     name: 'BackupsPage',
@@ -73,6 +110,11 @@ export default {
             creatingFull: false,
             showRestoreModal: false,
             restoreTarget: null,
+            exportingConfig: false,
+            importingConfig: false,
+            configFile: null as File | null,
+            configFileName: '',
+            importedFiles: [] as string[],
         }
     },
     computed: {
@@ -124,6 +166,42 @@ export default {
                 this.$emit('toast', { msg: `Deleted backup: ${backup.name}`, type: 'danger' })
             } catch (e) {
                 this.$emit('toast', { msg: `Delete failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async handleExportConfig() {
+            this.exportingConfig = true
+            try {
+                const blob = await api.exportConfig()
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'craftctl-config.zip'
+                a.click()
+                URL.revokeObjectURL(url)
+                this.$emit('toast', { msg: 'Config exported!', type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Export failed: ${e.message}`, type: 'danger' })
+            } finally {
+                this.exportingConfig = false
+            }
+        },
+        onConfigFileChange(e) {
+            const input = e.target
+            this.configFile = input.files?.[0] ?? null
+            this.configFileName = this.configFile?.name || ''
+        },
+        async handleImportConfig() {
+            if (!this.configFile) return
+            this.importingConfig = true
+            this.importedFiles = []
+            try {
+                const data = await api.importConfig(this.configFile)
+                this.importedFiles = data.files ?? []
+                this.$emit('toast', { msg: `Imported ${this.importedFiles.length} file(s)`, type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Import failed: ${e.message}`, type: 'danger' })
+            } finally {
+                this.importingConfig = false
             }
         },
     },
@@ -257,5 +335,55 @@ export default {
     display: flex;
     gap: 10px;
     justify-content: flex-end;
+}
+
+.config-section {
+    margin-top: 24px;
+}
+
+.config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(30, 45, 61, 0.4);
+}
+
+.config-row:last-child {
+    border-bottom: none;
+}
+
+.config-import-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.file-label {
+    cursor: pointer;
+}
+
+.config-result {
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.result-label {
+    font-size: 12px;
+    color: #22c55e;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.result-file {
+    font-size: 12px;
+    color: var(--text2);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 4px;
 }
 </style>
