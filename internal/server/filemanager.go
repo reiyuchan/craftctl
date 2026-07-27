@@ -174,3 +174,24 @@ func (h Handler) makeDir(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"status": "ok"})
 }
+
+func (h Handler) uploadFile(c *fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return errorResp(c, 400, fmt.Errorf("no file provided: %w", err))
+	}
+	if file.Size > 100<<20 {
+		return errorResp(c, 400, fmt.Errorf("file too large (max 100MB)"))
+	}
+	rel := c.FormValue("path", "")
+	targetDir, err := h.resolvePath(rel)
+	if err != nil {
+		return errorResp(c, 403, err)
+	}
+	os.MkdirAll(targetDir, 0o755)
+	dst := filepath.Join(targetDir, file.Filename)
+	if err := c.SaveFile(file, dst); err != nil {
+		return errorResp(c, 500, fmt.Errorf("save file: %w", err))
+	}
+	return c.JSON(fiber.Map{"path": filepath.Join(rel, file.Filename), "size": file.Size, "name": file.Filename})
+}

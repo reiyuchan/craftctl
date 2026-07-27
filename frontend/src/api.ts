@@ -290,6 +290,12 @@ export const api = {
     apiVoid(`/api/files?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
   makeDir: (path: string) =>
     apiVoid('/api/files/mkdir', { method: 'POST', body: JSON.stringify({ path }) }),
+  uploadFile: (dirPath: string, file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('path', dirPath)
+    return apiVoid('/api/files/upload', { method: 'POST', body: fd })
+  },
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────

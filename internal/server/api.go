@@ -106,6 +106,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Put("/files/write", h.writeFile)
 	g.Delete("/files", h.deleteFile)
 	g.Post("/files/mkdir", h.makeDir)
+	g.Post("/files/upload", h.uploadFile)
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────

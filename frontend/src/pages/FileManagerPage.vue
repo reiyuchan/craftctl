@@ -13,8 +13,11 @@
                 <button class="btn btn-outline" @click="loadFiles()">Refresh</button>
                 <button class="btn btn-outline" @click="showNewFile = true">New File</button>
                 <button class="btn btn-outline" @click="showNewFolder = true">New Folder</button>
+                <button class="btn btn-outline" @click="triggerUpload">Upload</button>
             </div>
         </div>
+
+        <input type="file" ref="fileInput" style="display:none" @change="handleUpload">
 
         <div v-if="loading" class="fm-loading">Loading...</div>
 
@@ -110,6 +113,7 @@ const newFolderName = ref('')
 
 const newFileInput = ref<HTMLInputElement | null>(null)
 const newFolderInput = ref<HTMLInputElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const breadcrumbs = computed(() => {
     if (!currentPath.value) return []
@@ -226,6 +230,25 @@ function formatDate(iso: string): string {
     if (!iso) return ''
     const d = new Date(iso)
     return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function triggerUpload() {
+    fileInput.value?.click()
+}
+
+async function handleUpload(e: Event) {
+    const input = e.target as HTMLInputElement
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+        await api.uploadFile(currentPath.value, file)
+        emit('toast', { msg: `Uploaded ${file.name}`, type: 'success' })
+        await loadFiles()
+    } catch (err: any) {
+        emit('toast', { msg: `Upload failed: ${err.message}`, type: 'danger' })
+    } finally {
+        input.value = ''
+    }
 }
 
 onMounted(() => {
