@@ -50,7 +50,7 @@ export interface ServerProps {
   spawn_npcs: boolean
   view_distance: number
   simulation_distance: number
-  port: number
+  server_port: number
   level_type: string
 }
 

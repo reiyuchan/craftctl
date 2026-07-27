@@ -281,7 +281,7 @@ export default {
                     spawn_npcs: this.store.serverProps.spawnNpcs,
                     view_distance: this.store.serverProps.viewDistance,
                     simulation_distance: this.store.serverProps.simulationDistance,
-                    port: this.store.serverProps.port,
+                    server_port: this.store.serverProps.port,
                     level_type: this.store.serverProps.levelType,
                 }
                 await api.saveServerProps(props)

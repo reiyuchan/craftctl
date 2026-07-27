@@ -706,7 +706,7 @@ export const store = reactive<Store>({
         spawnNpcs: props.spawn_npcs,
         viewDistance: props.view_distance,
         simulationDistance: props.simulation_distance,
-        port: props.port,
+        port: props.server_port,
         levelType: props.level_type as LevelType,
       }
     } catch {
