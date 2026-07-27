@@ -113,6 +113,10 @@
                     </div>
                     <input v-model.number="newTask.retentionCount" type="number" min="0" class="setting-input sm" />
                 </div>
+                <div v-if="newTask.type === 'restart'" class="task-form-row" style="margin-top: 8px">
+                    <input v-model="newTask.preScript" placeholder="Pre-start script (optional)" class="setting-input" style="flex: 1" />
+                    <input v-model="newTask.postScript" placeholder="Post-start script (optional)" class="setting-input" style="flex: 1" />
+                </div>
             </div>
 
             <div class="settings-body">
@@ -122,7 +126,7 @@
                 <div v-for="task in store.scheduledTasks" :key="task.id" class="task-row">
                     <div class="task-info">
                         <span class="task-name">{{ task.name }}</span>
-                        <span class="task-meta">{{ task.type }} | {{ task.interval }}<span v-if="task.type === 'backup'"> | {{ task.backupType === 'full' ? 'Full' : 'World' }}<span v-if="task.retentionCount > 0"> | Keep {{ task.retentionCount }}</span></span></span>
+                        <span class="task-meta">{{ task.type }} | {{ task.interval }}<span v-if="task.type === 'backup'"> | {{ task.backupType === 'full' ? 'Full' : 'World' }}<span v-if="task.retentionCount > 0"> | Keep {{ task.retentionCount }}</span></span><span v-if="task.type === 'restart' && task.preScript"> | Pre: {{ task.preScript }}</span><span v-if="task.type === 'restart' && task.postScript"> | Post: {{ task.postScript }}</span></span>
                         <span class="task-meta" v-if="task.lastRun">Last: {{ formatTime(task.lastRun) }}</span>
                     </div>
                     <div class="task-controls">
@@ -161,6 +165,10 @@
                         <span class="setting-desc">Max backups to keep (0 = unlimited)</span>
                     </div>
                     <input v-model.number="editForm.retentionCount" type="number" min="0" class="setting-input sm" />
+                </div>
+                <div v-if="editForm.type === 'restart'" class="task-form-row" style="margin-top: 8px">
+                    <input v-model="editForm.preScript" placeholder="Pre-start script (optional)" class="setting-input" style="flex: 1" />
+                    <input v-model="editForm.postScript" placeholder="Post-start script (optional)" class="setting-input" style="flex: 1" />
                 </div>
             </div>
         </div>
@@ -246,9 +254,9 @@ export default {
                 javaPath: store.jvmSettings.javaPath,
             },
             showAddTask: false,
-            newTask: { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0 },
+            newTask: { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0, preScript: '', postScript: '' },
             editingTask: null as any,
-            editForm: { name: '', type: 'backup', interval: '', backupType: 'full', retentionCount: 0 },
+            editForm: { name: '', type: 'backup', interval: '', backupType: 'full', retentionCount: 0, preScript: '', postScript: '' },
             webhook: { url: '', enabled: false, events: [] as string[], eventsStr: '' },
             settingsSections: [
                 {
@@ -336,7 +344,7 @@ export default {
             try {
                 await store.createScheduledTask(this.newTask)
                 this.showAddTask = false
-                this.newTask = { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0 }
+                this.newTask = { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0, preScript: '', postScript: '' }
                 this.$emit('toast', { msg: 'Task created!', type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
@@ -360,7 +368,7 @@ export default {
         },
         editTask(task: any) {
             this.editingTask = task
-            this.editForm = { name: task.name, type: task.type, interval: task.interval, backupType: task.backupType || 'full', retentionCount: task.retentionCount || 0 }
+            this.editForm = { name: task.name, type: task.type, interval: task.interval, backupType: task.backupType || 'full', retentionCount: task.retentionCount || 0, preScript: task.preScript || '', postScript: task.postScript || '' }
         },
         async saveEdit() {
             if (!this.editingTask) return

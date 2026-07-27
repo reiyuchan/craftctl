@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -24,6 +25,8 @@ type ScheduledTask struct {
 	NextRun        string `json:"nextRun"`
 	BackupType     string `json:"backupType"`
 	RetentionCount int    `json:"retentionCount"`
+	PreScript      string `json:"preScript"`
+	PostScript     string `json:"postScript"`
 }
 
 type Scheduler struct {
@@ -153,7 +156,7 @@ func (s *Scheduler) executeTask(t *ScheduledTask) {
 	case "backup":
 		s.runBackup(t)
 	case "restart":
-		s.runRestart()
+		s.runRestart(t)
 	case "stop":
 		s.runStop()
 	}
@@ -301,9 +304,15 @@ func (s *Scheduler) enforceRetention(backupDir, backupType string, maxKeep int) 
 	}
 }
 
-func (s *Scheduler) runRestart() {
+func (s *Scheduler) runRestart(t *ScheduledTask) {
 	if s.mc == nil {
 		return
+	}
+	if t != nil && t.PreScript != "" {
+		s.logger.Info("running pre-start script", zap.String("script", t.PreScript))
+		if err := runScript(t.PreScript); err != nil {
+			s.logger.Error("pre-start script failed", zap.Error(err))
+		}
 	}
 	if s.mc.IsRunning() {
 		if err := s.mc.Stop(); err != nil {
@@ -322,7 +331,25 @@ func (s *Scheduler) runRestart() {
 		s.logger.Error("scheduler restart: start failed", zap.Error(err))
 		return
 	}
+	if t != nil && t.PostScript != "" {
+		s.logger.Info("running post-start script", zap.String("script", t.PostScript))
+		go func() {
+			time.Sleep(5 * time.Second)
+			if err := runScript(t.PostScript); err != nil {
+				s.logger.Error("post-start script failed", zap.Error(err))
+			}
+		}()
+	}
 	s.logger.Info("scheduled restart completed")
+}
+
+func runScript(script string) error {
+	cmd := exec.Command("sh", "-c", script)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("script failed: %s, output: %s", err, string(output))
+	}
+	return nil
 }
 
 func (s *Scheduler) runStop() {
@@ -370,6 +397,8 @@ func (s *Scheduler) UpdateTask(id string, update ScheduledTask) error {
 			s.tasks[i].Enabled = update.Enabled
 			s.tasks[i].BackupType = update.BackupType
 			s.tasks[i].RetentionCount = update.RetentionCount
+			s.tasks[i].PreScript = update.PreScript
+			s.tasks[i].PostScript = update.PostScript
 			s.recalcNextRuns()
 			s.save()
 			return nil
