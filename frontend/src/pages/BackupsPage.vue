@@ -112,9 +112,9 @@ export default {
             restoreTarget: null,
             exportingConfig: false,
             importingConfig: false,
-            configFile: null as File | null,
+            configFile: null,
             configFileName: '',
-            importedFiles: [] as string[],
+            importedFiles: [],
         }
     },
     computed: {

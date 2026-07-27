@@ -129,6 +129,8 @@ export interface ScheduledTask {
   nextRun: string
   backupType: string
   retentionCount: number
+  preScript: string
+  postScript: string
 }
 
 export interface BackupInfo {
@@ -228,9 +230,9 @@ export const api = {
 
   // Scheduler
   getScheduledTasks: () => apiFetch<ScheduledTask[]>('/api/scheduler/tasks'),
-  createScheduledTask: (task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number }) =>
+  createScheduledTask: (task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }) =>
     apiFetch<ScheduledTask>('/api/scheduler/tasks', { method: 'POST', body: JSON.stringify(task) }),
-  updateScheduledTask: (id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number }) =>
+  updateScheduledTask: (id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }) =>
     apiVoid(`/api/scheduler/tasks/${id}`, { method: 'PUT', body: JSON.stringify(task) }),
   deleteScheduledTask: (id: string) =>
     apiVoid(`/api/scheduler/tasks/${id}`, { method: 'DELETE' }),
@@ -306,7 +308,7 @@ export const api = {
   },
 
   // ── Webhook ────────────────────────────────────────────────────────────────
-  getWebhook: () => apiJson<WebhookConfig>('/api/webhook'),
+  getWebhook: () => apiFetch<WebhookConfig>('/api/webhook'),
   updateWebhook: (cfg: WebhookConfig) =>
     apiVoid('/api/webhook', { method: 'PUT', body: JSON.stringify(cfg) }),
   testWebhook: () =>
@@ -321,7 +323,7 @@ export const api = {
   importConfig: (file: File) => {
     const fd = new FormData()
     fd.append('file', file)
-    return apiJson<{ status: string; files: string[] }>('/api/config/import', { method: 'POST', body: fd })
+    return apiFetch<{ status: string; files: string[] }>('/api/config/import', { method: 'POST', body: fd })
   },
 }
 

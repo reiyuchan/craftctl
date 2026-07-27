@@ -331,8 +331,8 @@ export interface Store {
 
   scheduledTasks: ScheduledTask[]
   fetchScheduledTasks(): Promise<void>
-  createScheduledTask(task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number }): Promise<void>
-  updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number }): Promise<void>
+  createScheduledTask(task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }): Promise<void>
+  updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }): Promise<void>
   deleteScheduledTask(id: string): Promise<void>
   runScheduledTask(id: string): Promise<void>
   toggleScheduledTask(id: string, enabled: boolean): Promise<void>
@@ -852,7 +852,7 @@ export const store = reactive<Store>({
     }
   },
 
-  async createScheduledTask(task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number }): Promise<void> {
+  async createScheduledTask(task: { name: string; type: string; interval: string; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }): Promise<void> {
     try {
       const created = await api.createScheduledTask(task)
       this.scheduledTasks.push(created)
@@ -863,7 +863,7 @@ export const store = reactive<Store>({
     }
   },
 
-  async updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number }): Promise<void> {
+  async updateScheduledTask(id: string, task: { name: string; type: string; interval: string; enabled: boolean; backupType?: string; retentionCount?: number; preScript?: string; postScript?: string }): Promise<void> {
     try {
       await api.updateScheduledTask(id, task)
       await this.fetchScheduledTasks()
@@ -899,7 +899,7 @@ export const store = reactive<Store>({
     const task = this.scheduledTasks.find(t => t.id === id)
     if (!task) return
     try {
-      await api.updateScheduledTask(id, { name: task.name, type: task.type, interval: task.interval, enabled, backupType: task.backupType, retentionCount: task.retentionCount })
+      await api.updateScheduledTask(id, { name: task.name, type: task.type, interval: task.interval, enabled, backupType: task.backupType, retentionCount: task.retentionCount, preScript: task.preScript, postScript: task.postScript })
       task.enabled = enabled
     } catch (e: any) {
       this.addLog('ERROR', 'error', `Toggle task failed: ${e.message ?? e}`)
