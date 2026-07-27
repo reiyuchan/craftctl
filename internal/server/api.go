@@ -107,6 +107,10 @@ func (h Handler) routes(app *fiber.App) {
 	g.Delete("/files", h.deleteFile)
 	g.Post("/files/mkdir", h.makeDir)
 	g.Post("/files/upload", h.uploadFile)
+
+	g.Get("/webhook", h.getWebhookConfig)
+	g.Put("/webhook", h.updateWebhookConfig)
+	g.Post("/webhook/test", h.testWebhook)
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────

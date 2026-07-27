@@ -165,6 +165,42 @@
             </div>
         </div>
 
+        <div class="webhook-section card settings-card">
+            <div class="card-header">
+                <span class="card-title">DISCORD WEBHOOK</span>
+                <label class="toggle">
+                    <input type="checkbox" v-model="webhook.enabled" @change="saveWebhook" />
+                    <span class="toggle-track">
+                        <span class="toggle-thumb"></span>
+                    </span>
+                </label>
+            </div>
+            <div class="settings-body">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Webhook URL</span>
+                        <span class="setting-desc">Discord webhook URL for notifications</span>
+                    </div>
+                    <div class="setting-control" style="flex: 1">
+                        <input v-model="webhook.url" class="setting-input" placeholder="https://discord.com/api/webhooks/..." style="width: 100%" />
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <span class="setting-name">Events</span>
+                        <span class="setting-desc">Comma-separated: server-start, server-stop, backup, error, *</span>
+                    </div>
+                    <div class="setting-control" style="flex: 1">
+                        <input v-model="webhook.eventsStr" class="setting-input" placeholder="*" style="width: 100%" />
+                    </div>
+                </div>
+                <div class="settings-actions">
+                    <button class="btn btn-outline" @click="testWebhook">TEST</button>
+                    <button class="btn btn-primary" @click="saveWebhook">SAVE WEBHOOK</button>
+                </div>
+            </div>
+        </div>
+
         <div class="settings-actions">
             <button class="btn btn-outline" @click="resetDefaults">RESET DEFAULTS</button>
             <button class="btn btn-primary" @click="saveJVM">💾 SAVE JVM</button>
@@ -213,6 +249,7 @@ export default {
             newTask: { name: '', type: 'backup', interval: '6h', backupType: 'full', retentionCount: 0 },
             editingTask: null as any,
             editForm: { name: '', type: 'backup', interval: '', backupType: 'full', retentionCount: 0 },
+            webhook: { url: '', enabled: false, events: [] as string[], eventsStr: '' },
             settingsSections: [
                 {
                     title: 'GENERAL',
@@ -255,6 +292,7 @@ export default {
     mounted() {
         store.fetchServerProps()
         store.fetchScheduledTasks()
+        this.loadWebhook()
     },
     methods: {
         saveJVM() {
@@ -345,6 +383,29 @@ export default {
             if (!rfc3339) return 'Never'
             const d = new Date(rfc3339)
             return d.toLocaleString()
+        },
+        async loadWebhook() {
+            try {
+                const cfg = await api.getWebhook()
+                this.webhook = { ...cfg, eventsStr: cfg.events?.join(', ') || '*' }
+            } catch { /* ignore */ }
+        },
+        async saveWebhook() {
+            try {
+                const events = this.webhook.eventsStr.split(',').map(s => s.trim()).filter(Boolean)
+                await api.updateWebhook({ url: this.webhook.url, enabled: this.webhook.enabled, events })
+                this.$emit('toast', { msg: 'Webhook saved', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async testWebhook() {
+            try {
+                await api.testWebhook()
+                this.$emit('toast', { msg: 'Test sent!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message}`, type: 'danger' })
+            }
         },
     },
 }

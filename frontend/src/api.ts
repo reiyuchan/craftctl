@@ -94,6 +94,12 @@ export interface PlayerEntry {
   bppermission?: number
 }
 
+export interface WebhookConfig {
+  url: string
+  enabled: boolean
+  events: string[]
+}
+
 
 export interface VanillaVersion {
   id: string; type: string; url: string
@@ -296,6 +302,13 @@ export const api = {
     fd.append('path', dirPath)
     return apiVoid('/api/files/upload', { method: 'POST', body: fd })
   },
+
+  // ── Webhook ────────────────────────────────────────────────────────────────
+  getWebhook: () => apiJson<WebhookConfig>('/api/webhook'),
+  updateWebhook: (cfg: WebhookConfig) =>
+    apiVoid('/api/webhook', { method: 'PUT', body: JSON.stringify(cfg) }),
+  testWebhook: () =>
+    apiVoid('/api/webhook/test', { method: 'POST' }),
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────
