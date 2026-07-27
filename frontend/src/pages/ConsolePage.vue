@@ -5,6 +5,7 @@
             <div class="card-header">
                 <span class="card-title">SERVER CONSOLE</span>
                 <div class="console-controls">
+                    <input v-model="searchQuery" class="search-input" placeholder="Search logs..." />
                     <button class="icon-btn" @click="downloadLogs" title="Download logs">⬇ log</button>
                     <button class="icon-btn" @click="clearConsole" title="Clear">🗑</button>
                     <button class="icon-btn" @click="scrollToBottom" title="Scroll to bottom">⬇</button>
@@ -19,7 +20,7 @@
                 <div v-for="(line, i) in filteredLogs" :key="i" class="log-line" :class="line.type">
                     <span class="log-time">{{ line.time }}</span>
                     <span class="log-level">[{{ line.level }}]</span>
-                    <span class="log-msg">{{ line.msg }}</span>
+                    <span class="log-msg" v-html="highlightMatch(line.msg)"></span>
                 </div>
             </div>
 
@@ -48,14 +49,22 @@ export default {
             logFilters: ['ALL', 'INFO', 'WARN', 'ERROR', 'CHAT'],
             cmdHistory: [],
             cmdHistoryIdx: -1,
+            searchQuery: '',
         }
     },
     computed: {
         filteredLogs() {
-            if (this.activeFilter === 'ALL') return this.store.logs
-            return this.store.logs.filter(l =>
-                this.activeFilter === 'CHAT' ? l.type === 'chat' : l.level === this.activeFilter
-            )
+            let logs = this.store.logs
+            if (this.activeFilter !== 'ALL') {
+                logs = logs.filter(l =>
+                    this.activeFilter === 'CHAT' ? l.type === 'chat' : l.level === this.activeFilter
+                )
+            }
+            if (this.searchQuery.trim()) {
+                const q = this.searchQuery.toLowerCase()
+                logs = logs.filter(l => l.msg.toLowerCase().includes(q) || l.level.toLowerCase().includes(q))
+            }
+            return logs
         },
     },
     methods: {
@@ -111,6 +120,15 @@ export default {
                 this.cmdHistoryIdx = -1
                 this.consoleInput = ''
             }
+        },
+        highlightMatch(msg) {
+            if (!this.searchQuery.trim()) return this.escapeHtml(msg)
+            const q = this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            const regex = new RegExp(`(${q})`, 'gi')
+            return this.escapeHtml(msg).replace(regex, '<mark class="search-hl">$1</mark>')
+        },
+        escapeHtml(str) {
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         },
     },
     mounted() {
@@ -247,5 +265,32 @@ export default {
 
 .console-input::placeholder {
     color: var(--muted);
+}
+
+.search-input {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 10px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    width: 160px;
+    outline: none;
+}
+
+.search-input:focus {
+    border-color: var(--green);
+}
+
+.search-input::placeholder {
+    color: var(--muted);
+}
+
+:deep(.search-hl) {
+    background: rgba(250, 204, 21, 0.3);
+    color: #facc15;
+    border-radius: 2px;
+    padding: 0 1px;
 }
 </style>
