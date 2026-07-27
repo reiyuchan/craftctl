@@ -43,9 +43,31 @@ func (h Handler) getServerProperties(c *fiber.Ctx) error {
 }
 
 func (h Handler) updateServerProperties(c *fiber.Ctx) error {
-	var props map[string]string
-	if err := c.BodyParser(&props); err != nil {
+	var raw map[string]interface{}
+	if err := c.BodyParser(&raw); err != nil {
 		return errorResp(c, 400, err)
+	}
+
+	props := make(map[string]string, len(raw))
+	for k, v := range raw {
+		switch val := v.(type) {
+		case string:
+			props[k] = val
+		case bool:
+			if val {
+				props[k] = "true"
+			} else {
+				props[k] = "false"
+			}
+		case float64:
+			if val == float64(int64(val)) {
+				props[k] = fmt.Sprintf("%d", int64(val))
+			} else {
+				props[k] = fmt.Sprintf("%g", val)
+			}
+		default:
+			props[k] = fmt.Sprintf("%v", val)
+		}
 	}
 
 	os.MkdirAll(h.cfg.ServerDir, 0o755)
