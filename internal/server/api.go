@@ -81,6 +81,8 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/worlds/backup", h.backupWorld)
 	g.Delete("/worlds/:name", h.deleteWorld)
 
+	g.Post("/server/clone", h.cloneServer)
+
 	g.Get("/backups", h.listBackups)
 	g.Post("/backups/full", h.createFullBackup)
 	g.Post("/backups/restore", h.restoreBackup)

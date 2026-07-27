@@ -214,6 +214,8 @@ export const api = {
     apiFetch<{ path: string; name: string }>('/api/worlds/backup', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteWorld: (name: string) =>
     apiVoid(`/api/worlds/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  cloneServer: (name: string) =>
+    apiFetch<{ path: string; name: string }>('/api/server/clone', { method: 'POST', body: JSON.stringify({ name }) }),
 
   // Backups
   getBackups: () => apiFetch<BackupInfo[]>('/api/backups'),

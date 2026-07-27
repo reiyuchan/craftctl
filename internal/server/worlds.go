@@ -185,4 +185,64 @@ func zipDir(source, dest string) error {
 	})
 }
 
+func (h Handler) cloneServer(c *fiber.Ctx) error {
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return errorResp(c, 400, err)
+	}
+	if body.Name == "" {
+		return errorResp(c, 400, fmt.Errorf("clone name is required"))
+	}
+
+	srcDir := h.cfg.ServerDir
+	parentDir := filepath.Dir(srcDir)
+	dstDir := filepath.Join(parentDir, body.Name)
+
+	if _, err := os.Stat(dstDir); err == nil {
+		return errorResp(c, 409, fmt.Errorf("directory already exists: %s", body.Name))
+	}
+
+	if err := copyDir(srcDir, dstDir); err != nil {
+		return errorResp(c, 500, fmt.Errorf("clone server: %w", err))
+	}
+
+	return c.JSON(fiber.Map{"status": "ok", "path": dstDir, "name": body.Name})
+}
+
+func copyDir(src, dst string) error {
+	return filepath.Walk(src, func(path string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		dstPath := filepath.Join(dst, rel)
+		if fi.IsDir() {
+			return os.MkdirAll(dstPath, fi.Mode())
+		}
+		return copyFile(path, dstPath)
+	})
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
+}
+
 

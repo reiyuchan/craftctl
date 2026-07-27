@@ -3,6 +3,7 @@
 
         <div class="worlds-header">
             <button class="btn btn-outline" @click="store.fetchWorlds()">Refresh</button>
+            <button class="btn btn-primary" @click="showCloneModal = true">CLONE SERVER</button>
         </div>
 
         <div v-if="store.worlds.length === 0" class="worlds-empty">
@@ -35,11 +36,26 @@
             </div>
         </div>
 
+        <div v-if="showCloneModal" class="modal-overlay" @click.self="showCloneModal = false">
+            <div class="modal-card">
+                <h3 class="modal-title">Clone Server</h3>
+                <p class="modal-text">This will copy the entire server directory to a new folder alongside the current one.</p>
+                <input v-model="cloneName" class="setting-input" placeholder="New server name" style="margin-bottom: 16px" />
+                <div class="modal-actions">
+                    <button class="btn btn-outline" @click="showCloneModal = false">Cancel</button>
+                    <button class="btn btn-primary" :disabled="!cloneName || cloning" @click="handleClone">
+                        {{ cloning ? 'Cloning...' : 'Clone' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
 
 <script>
 import { store } from '../store.js'
+import { api } from '../api.js'
 
 export default {
     name: 'WorldsPage',
@@ -47,6 +63,9 @@ export default {
     data() {
         return {
             store,
+            showCloneModal: false,
+            cloneName: '',
+            cloning: false,
         }
     },
     async mounted() {
@@ -77,6 +96,20 @@ export default {
                 this.$emit('toast', { msg: `Deleted ${world.name}`, type: 'danger' })
             } catch (e) {
                 this.$emit('toast', { msg: `Delete failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async handleClone() {
+            if (!this.cloneName) return
+            this.cloning = true
+            try {
+                await api.cloneServer(this.cloneName)
+                this.$emit('toast', { msg: `Cloned to ${this.cloneName}`, type: 'success' })
+                this.showCloneModal = false
+                this.cloneName = ''
+            } catch (e) {
+                this.$emit('toast', { msg: `Clone failed: ${e.message}`, type: 'danger' })
+            } finally {
+                this.cloning = false
             }
         },
     },
@@ -162,5 +195,60 @@ export default {
     display: flex;
     gap: 6px;
     padding: 8px 12px 12px;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+}
+
+.modal-title {
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+.modal-text {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.setting-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13px;
+}
+
+.setting-input:focus {
+    outline: none;
+    border-color: var(--green);
 }
 </style>
