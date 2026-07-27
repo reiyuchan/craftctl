@@ -19,7 +19,14 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 async function apiVoid(path: string, opts?: RequestInit): Promise<void> {
-  const res = await fetch(`${BASE}${path}`, opts)
+  const isFormData = opts?.body instanceof FormData
+  const res = await fetch(`${BASE}${path}`, {
+    ...opts,
+    headers: {
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+      ...opts?.headers,
+    },
+  })
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText)
     throw new Error(text || `HTTP ${res.status}`)
