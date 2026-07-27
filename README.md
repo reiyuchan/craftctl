@@ -11,8 +11,14 @@ A self-hosted Minecraft server management dashboard with a web UI. Download serv
 - **Mod Management** — Search Modrinth for mods (Fabric/NeoForge/Quilt), browse versions, install to `mods/`.
 - **Plugin Management** — Search Modrinth and Hangar for plugins (Paper/Spigot), install to `plugins/`.
 - **Java Management** — Auto-detect installed Java versions, browse Adoptium releases, and download Java directly.
-- **Player Management** — View connected players, ops, whitelist.
-- **World Management** — Browse and manage world files.
+- **Player Management** — View connected players, ops, whitelist, with kick/op/deop/ban actions.
+- **World Management** — Browse and manage world files, backup, load, delete, and clone servers.
+- **Backups** — Full server and world backups with restore support. Config export/import.
+- **File Manager** — Browse, edit, create, delete, and upload files in the server directory.
+- **Scheduled Tasks** — Automated backups, restarts, and stops with configurable intervals.
+- **CPU/RAM Monitoring** — Real-time server stats with history charts.
+- **Discord Webhooks** — Get notifications for server events in Discord.
+- **Log Search** — Search and filter console logs with highlighting.
 - **Single Binary** — Frontend is embedded into the Go binary via `go:embed`. No separate frontend server needed.
 
 ## Screenshots
@@ -117,7 +123,17 @@ ctlcraft/
 │   │   ├── install.go           # Server software installer
 │   │   ├── versions.go          # Version listing endpoints
 │   │   ├── helpers.go           # HTTP client, search, download helpers
-│   │   └── websocket.go         # WebSocket console streaming
+│   │   ├── websocket.go         # WebSocket console streaming
+│   │   ├── events.go            # SSE EventHub (server-log, stats)
+│   │   ├── stats.go             # CPU/RAM monitoring
+│   │   ├── backups.go           # Backup/restore system
+│   │   ├── scheduler.go         # Scheduled task runner
+│   │   ├── props.go             # server.properties editor
+│   │   ├── filemanager.go       # File browser with upload
+│   │   ├── players.go           # Player/op/whitelist management
+│   │   ├── worlds.go            # World management + server cloning
+│   │   ├── configexport.go      # Config export/import
+│   │   └── webhook.go           # Discord webhook integration
 │   └── ui/
 │       ├── ui.go                # Embed + static file handler
 │       └── dist/                # Built frontend (gitignored)
@@ -132,11 +148,14 @@ ctlcraft/
 │           ├── ConsolePage.vue
 │           ├── PlayersPage.vue
 │           ├── WorldsPage.vue
+│           ├── BackupsPage.vue
 │           ├── ModsPage.vue
 │           ├── PluginsPage.vue
 │           ├── JavaPage.vue
 │           ├── ServerVersionsPage.vue
-│           └── SettingsPage.vue
+│           ├── SettingsPage.vue
+│           ├── PropertiesPage.vue
+│           └── FileManagerPage.vue
 ├── bin/                         # Pre-built binaries
 ├── go.mod
 └── go.sum
@@ -159,6 +178,12 @@ ctlcraft/
 | POST   | `/api/server/stop` | Stop MC server |
 | POST   | `/api/server/command` | Send command to running server |
 | POST   | `/api/server/install` | Install any server software |
+| GET    | `/api/server/logs` | Get server logs |
+| GET    | `/api/server/logs/download` | Download logs as file |
+| GET    | `/api/server/stats` | Get CPU/RAM stats |
+| GET    | `/api/server/properties` | Read server.properties (full) |
+| PUT    | `/api/server/properties` | Update server.properties |
+| POST   | `/api/server/clone` | Clone entire server directory |
 
 ### Mods & Plugins
 
@@ -169,10 +194,14 @@ ctlcraft/
 | POST   | `/api/mods/download` | Download/install a mod |
 | GET    | `/api/mods/installed` | List installed mods |
 | POST   | `/api/mods/delete` | Delete a mod |
+| GET    | `/api/mods/updates` | Check for mod updates |
+| POST   | `/api/mods/update` | Update a mod |
 | POST   | `/api/plugins/search` | Search Modrinth + Hangar plugins |
 | POST   | `/api/plugins/download` | Download/install a plugin |
 | GET    | `/api/plugins/installed` | List installed plugins |
 | POST   | `/api/plugins/delete` | Delete a plugin |
+| GET    | `/api/plugins/updates` | Check for plugin updates |
+| POST   | `/api/plugins/update` | Update a plugin |
 
 ### Server Software Versions
 
@@ -206,6 +235,75 @@ ctlcraft/
 |--------|------|-------------|
 | POST   | `/api/folder/open` | Open a folder in system file manager |
 
+### Worlds
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/worlds` | List worlds |
+| POST   | `/api/worlds/load` | Switch active world |
+| POST   | `/api/worlds/backup` | Backup a world |
+| DELETE | `/api/worlds/:name` | Delete a world |
+
+### Backups
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/backups` | List backups |
+| POST   | `/api/backups/full` | Create full backup |
+| POST   | `/api/backups/restore` | Restore from backup |
+| DELETE | `/api/backups/:name` | Delete a backup |
+
+### Players
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/players` | List online/known players |
+| GET    | `/api/players/ops` | List operators |
+| GET    | `/api/players/whitelist` | List whitelist |
+| POST   | `/api/players/op` | Add operator |
+| DELETE | `/api/players/op` | Remove operator |
+| POST   | `/api/players/kick` | Kick a player |
+| POST   | `/api/players/ban` | Ban a player |
+| POST   | `/api/players/pardon` | Pardon a player |
+| POST   | `/api/players/whitelist` | Add to whitelist |
+| DELETE | `/api/players/whitelist` | Remove from whitelist |
+
+### Files
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/files` | List directory |
+| GET    | `/api/files/read` | Read file |
+| PUT    | `/api/files/write` | Write file |
+| DELETE | `/api/files` | Delete file |
+| POST   | `/api/files/mkdir` | Create directory |
+| POST   | `/api/files/upload` | Upload file |
+
+### Scheduler
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/scheduler/tasks` | List scheduled tasks |
+| POST   | `/api/scheduler/tasks` | Create task |
+| PUT    | `/api/scheduler/tasks/:id` | Update task |
+| DELETE | `/api/scheduler/tasks/:id` | Delete task |
+| POST   | `/api/scheduler/tasks/:id/run` | Run task immediately |
+
+### Webhook
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/webhook` | Get webhook config |
+| PUT    | `/api/webhook` | Update webhook config |
+| POST   | `/api/webhook/test` | Send test notification |
+
+### Config Export/Import
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/config/export` | Download config zip |
+| POST   | `/api/config/import` | Upload config zip |
+
 ### WebSocket
 
 Connect to `ws://localhost:8000/ws` for real-time console streaming. The server sends output as plain text messages. Send commands as plain text to execute them.
@@ -217,6 +315,7 @@ Connect to `ws://localhost:8000/ws` for real-time console streaming. The server 
 | `server-log` | `/api/events/server-log` | Console log lines |
 | `server-stopped` | `/api/events/server-stopped` | Server process ended |
 | `server-error` | `/api/events/server-error` | Server error events |
+| `server-stats` | `/api/events/server-stats` | CPU/RAM usage updates |
 
 ## Configuration
 
