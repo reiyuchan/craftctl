@@ -6,10 +6,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+func safeName(name string) string {
+	name = filepath.Base(filepath.Clean(name))
+	return strings.ReplaceAll(name, "..", "")
+}
 
 type WorldInfo struct {
 	Name         string `json:"name"`
@@ -69,6 +75,7 @@ func (h Handler) loadWorld(c *fiber.Ctx) error {
 	if body.Name == "" {
 		return errorResp(c, 400, fmt.Errorf("world name is required"))
 	}
+	body.Name = safeName(body.Name)
 
 	worldPath := filepath.Join(h.cfg.ServerDir, body.Name)
 	if !existsFile(filepath.Join(worldPath, "level.dat")) {
@@ -96,6 +103,7 @@ func (h Handler) backupWorld(c *fiber.Ctx) error {
 	if body.Name == "" {
 		return errorResp(c, 400, fmt.Errorf("world name is required"))
 	}
+	body.Name = safeName(body.Name)
 
 	worldPath := filepath.Join(h.cfg.ServerDir, body.Name)
 	if !existsFile(filepath.Join(worldPath, "level.dat")) {
@@ -119,7 +127,7 @@ func (h Handler) backupWorld(c *fiber.Ctx) error {
 }
 
 func (h Handler) deleteWorld(c *fiber.Ctx) error {
-	name := c.Params("name")
+	name := safeName(c.Params("name"))
 	if name == "" {
 		return errorResp(c, 400, fmt.Errorf("world name is required"))
 	}
@@ -195,6 +203,7 @@ func (h Handler) cloneServer(c *fiber.Ctx) error {
 	if body.Name == "" {
 		return errorResp(c, 400, fmt.Errorf("clone name is required"))
 	}
+	body.Name = safeName(body.Name)
 
 	srcDir := h.cfg.ServerDir
 	parentDir := filepath.Dir(srcDir)
