@@ -128,7 +128,11 @@ func (h Handler) restoreBackup(c *fiber.Ctx) error {
 	defer r.Close()
 
 	for _, f := range r.File {
-		fpath := filepath.Join(h.cfg.ServerDir, f.Name)
+		name := filepath.Base(f.Name)
+		if strings.Contains(f.Name, "..") {
+			continue
+		}
+		fpath := filepath.Join(h.cfg.ServerDir, name)
 		if f.FileInfo().IsDir() {
 			os.MkdirAll(fpath, 0o755)
 			continue
@@ -157,7 +161,7 @@ func (h Handler) restoreBackup(c *fiber.Ctx) error {
 }
 
 func (h Handler) deleteBackup(c *fiber.Ctx) error {
-	name := c.Params("name")
+	name := safeName(c.Params("name"))
 	if name == "" {
 		return errorResp(c, 400, fmt.Errorf("backup name is required"))
 	}
