@@ -205,7 +205,6 @@ export const api = {
 
   // Aliases for compatibility with page imports
   getServerDirPath: () => apiFetch<string>('/api/server/dir'),
-  getServerJarPath: () => apiFetch<string>('/api/server/jar'),
   openServerFolder: () => apiVoid('/api/folder/open', { method: 'POST', body: JSON.stringify({ path: '' }) }),
 
   // Worlds

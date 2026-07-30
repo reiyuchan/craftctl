@@ -542,6 +542,9 @@ func modrinthDownload(projectID, versionID, modsDir string) (string, error) {
 		}
 	}
 
+	if len(target.Files) == 0 {
+		return "", fmt.Errorf("no files in version")
+	}
 	file := target.Files[0]
 	for _, f := range target.Files {
 		if f.Primary {
@@ -695,6 +698,9 @@ func pluginDownload(slug, version, source, pluginsDir string) (string, error) {
 			"https://api.modrinth.com/v2/project/" + slug + "/version")
 		if err != nil || !resp.IsSuccess() || len(versions) == 0 {
 			return "", errors.New("plugin not found")
+		}
+		if len(versions[0].Files) == 0 {
+			return "", fmt.Errorf("no files in version")
 		}
 
 		file := versions[0].Files[0]
