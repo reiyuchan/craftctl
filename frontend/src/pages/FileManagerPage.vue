@@ -31,7 +31,7 @@
                 <span class="fm-col actions">Actions</span>
             </div>
             <div v-for="f in files" :key="f.name" class="fm-row"
-                @dblclick="f.isDir ? navigateTo(joinPath(currentPath, f.name)) : openFile(f)">
+                @click="f.isDir ? navigateTo(joinPath(currentPath, f.name)) : openFile(f)">
                 <span class="fm-col name">
                     <span class="file-icon">{{ f.isDir ? '📁' : '📄' }}</span>
                     {{ f.name }}
