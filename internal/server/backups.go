@@ -160,6 +160,20 @@ func (h Handler) restoreBackup(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "restored", "name": body.Name})
 }
 
+func (h Handler) downloadBackup(c *fiber.Ctx) error {
+	name := safeName(c.Params("name"))
+	if name == "" {
+		return errorResp(c, 400, fmt.Errorf("backup name is required"))
+	}
+
+	backupPath := filepath.Join(h.cfg.ServerDir, "backups", name)
+	if !existsFile(backupPath) {
+		return errorResp(c, 404, fmt.Errorf("backup not found: %s", name))
+	}
+
+	return c.Download(backupPath, name)
+}
+
 func (h Handler) deleteBackup(c *fiber.Ctx) error {
 	name := safeName(c.Params("name"))
 	if name == "" {

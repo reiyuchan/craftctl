@@ -50,6 +50,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/mods/delete", h.deleteMod)
 	g.Get("/mods/updates", h.checkModUpdates)
 	g.Post("/mods/update", h.updateMod)
+	g.Get("/mods/download/:fileName", h.downloadModFile)
 
 	g.Get("/plugins/popular", h.popularPlugins)
 	g.Post("/plugins/search", h.searchPlugins)
@@ -58,6 +59,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Post("/plugins/delete", h.deletePlugin)
 	g.Get("/plugins/updates", h.checkPluginUpdates)
 	g.Post("/plugins/update", h.updatePlugin)
+	g.Get("/plugins/download/:fileName", h.downloadPluginFile)
 
 	g.Get("/versions/paper/:mcVersion/builds", h.paperBuilds)
 	g.Get("/versions/paper/:mcVersion/build/:build/url", h.paperDownloadURL)
@@ -79,6 +81,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/worlds", h.listWorlds)
 	g.Post("/worlds/load", h.loadWorld)
 	g.Post("/worlds/backup", h.backupWorld)
+	g.Get("/worlds/:name/download", h.downloadWorld)
 	g.Delete("/worlds/:name", h.deleteWorld)
 
 	g.Post("/server/clone", h.cloneServer)
@@ -86,6 +89,7 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/backups", h.listBackups)
 	g.Post("/backups/full", h.createFullBackup)
 	g.Post("/backups/restore", h.restoreBackup)
+	g.Get("/backups/:name/download", h.downloadBackup)
 	g.Delete("/backups/:name", h.deleteBackup)
 
 	h.registerPlayerRoutes(g)
@@ -377,6 +381,18 @@ func (h Handler) deleteMod(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "deleted"})
 }
 
+func (h Handler) downloadModFile(c *fiber.Ctx) error {
+	fileName := safeName(c.Params("fileName"))
+	if fileName == "" {
+		return errorResp(c, 400, fmt.Errorf("file name is required"))
+	}
+	path := filePath(h.cfg.ServerDir, "mods", fileName)
+	if !existsFile(path) {
+		return errorResp(c, 404, fmt.Errorf("mod not found: %s", fileName))
+	}
+	return c.Download(path, fileName)
+}
+
 // ── Plugins ────────────────────────────────────────────────────────────────
 
 func (h Handler) searchPlugins(c *fiber.Ctx) error {
@@ -415,6 +431,18 @@ func (h Handler) deletePlugin(c *fiber.Ctx) error {
 	c.BodyParser(&body)
 	os.Remove(filePath(h.cfg.ServerDir, "plugins", body.FileName))
 	return c.JSON(fiber.Map{"status": "deleted"})
+}
+
+func (h Handler) downloadPluginFile(c *fiber.Ctx) error {
+	fileName := safeName(c.Params("fileName"))
+	if fileName == "" {
+		return errorResp(c, 400, fmt.Errorf("file name is required"))
+	}
+	path := filePath(h.cfg.ServerDir, "plugins", fileName)
+	if !existsFile(path) {
+		return errorResp(c, 404, fmt.Errorf("plugin not found: %s", fileName))
+	}
+	return c.Download(path, fileName)
 }
 
 func (h Handler) checkModUpdates(c *fiber.Ctx) error {

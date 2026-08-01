@@ -30,6 +30,9 @@
                     <button class="tbl-btn" :disabled="world.backingUp" @click="handleBackup(world)">
                         {{ world.backingUp ? 'Backing up...' : 'Backup' }}
                     </button>
+                    <button class="tbl-btn" :disabled="world.downloading" @click="handleDownload(world)">
+                        {{ world.downloading ? 'Downloading...' : 'Download' }}
+                    </button>
                     <button class="tbl-btn danger" :disabled="world.active" @click="handleDelete(world)">Delete</button>
                 </div>
 
@@ -96,6 +99,19 @@ export default {
                 this.$emit('toast', { msg: `Deleted ${world.name}`, type: 'danger' })
             } catch (e) {
                 this.$emit('toast', { msg: `Delete failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async handleDownload(world) {
+            world.downloading = true
+            try {
+                const blob = await api.downloadWorld(world.name)
+                const { saveBlob } = await import('../api')
+                saveBlob(blob, `${world.name}.zip`)
+                this.$emit('toast', { msg: `Downloaded world: ${world.name}`, type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Download failed: ${e.message}`, type: 'danger' })
+            } finally {
+                world.downloading = false
             }
         },
         async handleClone() {

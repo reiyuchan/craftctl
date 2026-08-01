@@ -141,6 +141,7 @@
                                         @click="store.togglePlugin(plugin.id)">
                                         {{ plugin.status === 'disabled' ? 'Enable' : 'Disable' }}
                                     </button>
+                                    <button class="tbl-btn" @click="downloadItem(plugin)" title="Download .jar">⬇</button>
                                     <button class="tbl-btn danger" @click="confirmTarget = plugin">✕</button>
                                 </div>
                             </div>
@@ -284,6 +285,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { api } from '../api'
+import { saveBlob } from '../api'
 import { store } from '../store'
 import type { InstalledPlugin, PluginSearchResult, PluginLoaderType, ItemStatus } from '../store'
 
@@ -407,6 +409,15 @@ export default defineComponent({
                 this.$emit('toast', { msg: `${plugin.name} updated to v${plugin.latestVersion}`, type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Update failed: ${e}`, type: 'danger' })
+            }
+        },
+        async downloadItem(plugin: InstalledPlugin): Promise<void> {
+            try {
+                const blob = await api.downloadInstalledPlugin(plugin.fileName)
+                saveBlob(blob, plugin.fileName)
+                this.$emit('toast', { msg: `Downloaded ${plugin.fileName}`, type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Download failed: ${e}`, type: 'danger' })
             }
         },
         async doUninstall(): Promise<void> {

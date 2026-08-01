@@ -131,6 +131,7 @@
                                         @click="store.toggleMod(mod.id)">
                                         {{ mod.status === 'disabled' ? 'Enable' : 'Disable' }}
                                     </button>
+                                    <button class="tbl-btn" @click="downloadItem(mod)" title="Download .jar">⬇</button>
                                     <button class="tbl-btn danger" @click="confirmTarget = mod">✕</button>
                                 </div>
                             </div>
@@ -271,6 +272,7 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { api } from '../api'
+import { saveBlob } from '../api'
 import { store } from '../store'
 import type { InstalledMod, ModSearchResult, ModLoaderType, ItemStatus } from '../store'
 
@@ -410,6 +412,15 @@ export default defineComponent({
                 this.$emit('toast', { msg: `${mod.name} updated to v${mod.latestVersion}`, type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Update failed: ${e}`, type: 'danger' })
+            }
+        },
+        async downloadItem(mod: InstalledMod): Promise<void> {
+            try {
+                const blob = await api.downloadInstalledMod(mod.fileName)
+                saveBlob(blob, mod.fileName)
+                this.$emit('toast', { msg: `Downloaded ${mod.fileName}`, type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Download failed: ${e}`, type: 'danger' })
             }
         },
         async doUninstall(): Promise<void> {

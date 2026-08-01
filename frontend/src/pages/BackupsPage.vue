@@ -39,6 +39,9 @@
                         @click="handleRestore(backup)">
                         Restore
                     </button>
+                    <button class="tbl-btn" :disabled="downloadingBackup" @click="handleDownload(backup)">
+                        {{ downloadingBackup ? '...' : 'Download' }}
+                    </button>
                     <button class="tbl-btn danger" @click="handleDeleteBackup(backup)">Delete</button>
                 </span>
             </div>
@@ -112,6 +115,7 @@ export default {
             restoreTarget: null,
             exportingConfig: false,
             importingConfig: false,
+            downloadingBackup: false,
             configFile: null,
             configFileName: '',
             importedFiles: [],
@@ -166,6 +170,19 @@ export default {
                 this.$emit('toast', { msg: `Deleted backup: ${backup.name}`, type: 'danger' })
             } catch (e) {
                 this.$emit('toast', { msg: `Delete failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async handleDownload(backup) {
+            this.downloadingBackup = true
+            try {
+                const blob = await api.downloadBackup(backup.name)
+                const { saveBlob } = await import('../api')
+                saveBlob(blob, backup.name)
+                this.$emit('toast', { msg: `Downloaded backup: ${backup.name}`, type: 'success' })
+            } catch (e) {
+                this.$emit('toast', { msg: `Download failed: ${e.message}`, type: 'danger' })
+            } finally {
+                this.downloadingBackup = false
             }
         },
         async handleExportConfig() {

@@ -33,6 +33,26 @@ async function apiVoid(path: string, opts?: RequestInit): Promise<void> {
   }
 }
 
+async function apiDownload(path: string): Promise<Blob> {
+  const res = await fetch(`${BASE}${path}`)
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText)
+    throw new Error(text || `HTTP ${res.status}`)
+  }
+  return res.blob()
+}
+
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface ServerProps {
@@ -157,14 +177,7 @@ export const api = {
   stopServer: () => apiVoid('/api/server/stop', { method: 'POST' }),
   sendCommand: (command: string) => apiVoid('/api/server/command', { method: 'POST', body: JSON.stringify({ command }) }),
   getServerLogs: () => apiFetch<string[]>('/api/server/logs'),
-  downloadServerLogs: async (): Promise<Blob> => {
-    const res = await fetch(`${BASE}/api/server/logs/download`)
-    if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText)
-      throw new Error(text || `HTTP ${res.status}`)
-    }
-    return res.blob()
-  },
+  downloadServerLogs: () => apiDownload('/api/server/logs/download'),
   getActiveInfo: () => apiFetch<ServerInfo>('/api/server/info'),
 
   // Java
@@ -185,6 +198,8 @@ export const api = {
     apiVoid('/api/mods/download', { method: 'POST', body: JSON.stringify({ projectId, versionId }) }),
   getInstalledMods: () => apiFetch<InstalledItem[]>('/api/mods/installed'),
 
+  downloadInstalledMod: (fileName: string) => apiDownload(`/api/mods/download/${encodeURIComponent(fileName)}`),
+
   checkModUpdates: () => apiFetch<InstalledItem[]>('/api/mods/updates'),
   updateMod: (projectId: string, fileName: string) =>
     apiFetch<{ path: string }>('/api/mods/update', { method: 'POST', body: JSON.stringify({ projectId, fileName }) }),
@@ -202,6 +217,7 @@ export const api = {
   updatePlugin: (slug: string, fileName: string, source: string) =>
     apiFetch<{ path: string }>('/api/plugins/update', { method: 'POST', body: JSON.stringify({ slug, fileName, source }) }),
   deletePlugin: (fileName: string) => apiVoid('/api/plugins/delete', { method: 'POST', body: JSON.stringify({ fileName }) }),
+  downloadInstalledPlugin: (fileName: string) => apiDownload(`/api/plugins/download/${encodeURIComponent(fileName)}`),
 
   // Aliases for compatibility with page imports
   getServerDirPath: () => apiFetch<string>('/api/server/dir'),
@@ -215,6 +231,7 @@ export const api = {
     apiFetch<{ path: string; name: string }>('/api/worlds/backup', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteWorld: (name: string) =>
     apiVoid(`/api/worlds/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  downloadWorld: (name: string) => apiDownload(`/api/worlds/${encodeURIComponent(name)}/download`),
   cloneServer: (name: string) =>
     apiFetch<{ path: string; name: string }>('/api/server/clone', { method: 'POST', body: JSON.stringify({ name }) }),
 
@@ -226,6 +243,7 @@ export const api = {
     apiFetch<{ status: string }>('/api/backups/restore', { method: 'POST', body: JSON.stringify({ name }) }),
   deleteBackup: (name: string) =>
     apiVoid(`/api/backups/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+  downloadBackup: (name: string) => apiDownload(`/api/backups/${encodeURIComponent(name)}/download`),
 
   // Scheduler
   getScheduledTasks: () => apiFetch<ScheduledTask[]>('/api/scheduler/tasks'),

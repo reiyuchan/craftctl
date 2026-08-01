@@ -126,6 +126,32 @@ func (h Handler) backupWorld(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"status": "ok", "path": zipPath, "name": zipName})
 }
 
+func (h Handler) downloadWorld(c *fiber.Ctx) error {
+	name := safeName(c.Params("name"))
+	if name == "" {
+		return errorResp(c, 400, fmt.Errorf("world name is required"))
+	}
+
+	worldPath := filepath.Join(h.cfg.ServerDir, name)
+	if !existsFile(filepath.Join(worldPath, "level.dat")) {
+		return errorResp(c, 404, fmt.Errorf("world not found: %s", name))
+	}
+
+	tmp, err := os.CreateTemp("", "craftctl-world-*.zip")
+	if err != nil {
+		return errorResp(c, 500, fmt.Errorf("create temp file: %w", err))
+	}
+	tmpPath := tmp.Name()
+	tmp.Close()
+	defer os.Remove(tmpPath)
+
+	if err := zipDir(worldPath, tmpPath); err != nil {
+		return errorResp(c, 500, fmt.Errorf("zip world: %w", err))
+	}
+
+	return c.Download(tmpPath, name+".zip")
+}
+
 func (h Handler) deleteWorld(c *fiber.Ctx) error {
 	name := safeName(c.Params("name"))
 	if name == "" {
