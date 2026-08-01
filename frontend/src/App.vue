@@ -80,10 +80,11 @@ import SettingsPage from './pages/SettingsPage.vue'
 import BackupsPage from './pages/BackupsPage.vue'
 import PropertiesPage from './pages/PropertiesPage.vue'
 import FileManagerPage from './pages/FileManagerPage.vue'
+import LogsPage from './pages/LogsPage.vue'
 
 export default {
   name: 'App',
-  components: { DashboardPage, ConsolePage, PlayersPage, WorldsPage, ModsPage, PluginsPage, JavaPage, ServerVersionsPage, SettingsPage, BackupsPage, PropertiesPage, FileManagerPage },
+  components: { DashboardPage, ConsolePage, PlayersPage, WorldsPage, ModsPage, PluginsPage, JavaPage, ServerVersionsPage, SettingsPage, BackupsPage, PropertiesPage, FileManagerPage, LogsPage },
 
   data() {
     return {
@@ -104,6 +105,7 @@ export default {
         { id: 'java', icon: '☕', label: 'Java', subtitle: 'Java runtime manager', component: JavaPage },
         { id: 'properties', icon: '📝', label: 'Properties', subtitle: 'Edit server.properties', component: PropertiesPage },
         { id: 'files', icon: '📁', label: 'Files', subtitle: 'Browse server files', component: FileManagerPage },
+        { id: 'logs', icon: '📜', label: 'Logs', subtitle: 'Browse server log files', component: LogsPage },
         { id: 'settings', icon: '⚙', label: 'Settings', subtitle: 'Server & JVM config', component: SettingsPage },
       ],
     }

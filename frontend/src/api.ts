@@ -161,6 +161,20 @@ export interface BackupInfo {
   type: 'world' | 'full'
 }
 
+export interface LogFileInfo {
+  name: string
+  size: string
+  sizeBytes: number
+  modifiedDate: string
+  isGzipped: boolean
+}
+
+export interface LogContent {
+  name: string
+  content: string
+  truncated: boolean
+}
+
 // ── API Interface ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -332,16 +346,20 @@ export const api = {
     apiVoid('/api/webhook/test', { method: 'POST' }),
 
   // ── Config Export/Import ──────────────────────────────────────────────────
-  exportConfig: async () => {
-    const res = await fetch(`${BASE}/api/config/export`)
-    if (!res.ok) throw new Error(await res.text().catch(() => res.statusText))
-    return res.blob()
-  },
+  exportConfig: () => apiDownload('/api/config/export'),
   importConfig: (file: File) => {
     const fd = new FormData()
     fd.append('file', file)
     return apiFetch<{ status: string; files: string[] }>('/api/config/import', { method: 'POST', body: fd })
   },
+
+  // ── Logs ──────────────────────────────────────────────────────────────────
+  getLogFiles: () => apiFetch<LogFileInfo[]>('/api/logs'),
+  readLogFile: (file: string) =>
+    apiFetch<LogContent>(`/api/logs/read?file=${encodeURIComponent(file)}`),
+  downloadLogFile: (file: string) => apiDownload(`/api/logs/download?file=${encodeURIComponent(file)}`),
+  deleteLogFile: (file: string) =>
+    apiVoid(`/api/logs/${encodeURIComponent(file)}`, { method: 'DELETE' }),
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────

@@ -120,6 +120,11 @@ func (h Handler) routes(app *fiber.App) {
 
 	g.Get("/config/export", h.exportConfig)
 	g.Post("/config/import", h.importConfig)
+
+	g.Get("/logs", h.listLogs)
+	g.Get("/logs/read", h.readLog)
+	g.Get("/logs/download", h.downloadLog)
+	g.Delete("/logs/:name", h.deleteLog)
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────
