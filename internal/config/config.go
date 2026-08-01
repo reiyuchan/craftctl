@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/spf13/pflag"
@@ -38,11 +39,21 @@ func New() Config {
 
 	port := CustomPort
 	if port == 0 {
+		if envPort := os.Getenv("CRAFTCTL_PORT"); envPort != "" {
+			if p, err := strconv.Atoi(envPort); err == nil && p > 0 {
+				port = p
+			}
+		}
+	}
+	if port == 0 {
 		port = Port
 	}
 
-	exe, _ := os.Executable()
-	dataDir := filepath.Dir(exe)
+	dataDir := os.Getenv("CRAFTCTL_HOME")
+	if dataDir == "" {
+		exe, _ := os.Executable()
+		dataDir = filepath.Dir(exe)
+	}
 
 	return Config{
 		Port:      port,

@@ -1,0 +1,16 @@
+services:
+  craftctl:
+    build: .
+    image: craftctl:latest
+    container_name: craftctl
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - CRAFTCTL_HOME=/data
+      - CRAFTCTL_PORT=8000
+    volumes:
+      - craftctl-data:/data
+
+volumes:
+  craftctl-data:
