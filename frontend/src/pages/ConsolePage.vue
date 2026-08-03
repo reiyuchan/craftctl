@@ -6,6 +6,8 @@
                 <span class="card-title">SERVER CONSOLE</span>
                 <div class="console-controls">
                     <input v-model="searchQuery" class="search-input" placeholder="Search logs..." />
+                    <button class="icon-btn" :class="{ active: showQuickCmds }" @click="showQuickCmds = !showQuickCmds"
+                        title="Quick commands">⌘</button>
                     <button class="icon-btn" @click="downloadLogs" title="Download logs">⬇ log</button>
                     <button class="icon-btn" @click="clearConsole" title="Clear">🗑</button>
                     <button class="icon-btn" @click="scrollToBottom" title="Scroll to bottom">⬇</button>
@@ -22,6 +24,10 @@
                     <span class="log-level">[{{ line.level }}]</span>
                     <span class="log-msg" v-html="highlightMatch(line.msg)"></span>
                 </div>
+            </div>
+
+            <div v-if="showQuickCmds" class="quick-cmd-bar">
+                <span v-for="cmd in quickCmds" :key="cmd" class="quick-cmd" @click="useQuickCmd(cmd)">{{ cmd }}</span>
             </div>
 
             <div class="console-input-row">
@@ -50,6 +56,8 @@ export default {
             cmdHistory: [],
             cmdHistoryIdx: -1,
             searchQuery: '',
+            showQuickCmds: false,
+            quickCmds: ['save-all', 'list', 'seed', 'tps', 'version', 'say', 'gamemode', 'time set day', 'weather clear', 'op', 'deop', 'restart', 'stop', 'help'],
         }
     },
     computed: {
@@ -84,6 +92,9 @@ export default {
         },
         clearConsole() {
             this.store.logs = []
+        },
+        useQuickCmd(cmd) {
+            this.consoleInput = cmd
         },
         async downloadLogs() {
             try {
@@ -168,6 +179,36 @@ export default {
 }
 
 .filter-btn.active {
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.console-controls .icon-btn.active {
+    border-color: var(--green);
+    color: var(--green);
+}
+
+.quick-cmd-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.quick-cmd {
+    padding: 2px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.quick-cmd:hover {
     border-color: var(--green);
     color: var(--green);
 }

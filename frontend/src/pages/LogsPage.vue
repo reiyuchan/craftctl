@@ -40,6 +40,8 @@
                 <div class="card-header">
                     <span class="card-title">{{ activeFile ? activeFile.name : 'LOG VIEWER' }}</span>
                     <div class="viewer-controls" v-if="activeFile">
+                        <span v-if="isFollowing" class="live-indicator"><span class="live-dot"></span>LIVE</span>
+                        <button :class="['follow-btn', { active: isFollowing }]" @click="toggleFollow" title="Follow log file">FOLLOW</button>
                         <input v-model="searchQuery" class="search-input" placeholder="Search within log..." />
                         <button class="icon-btn" @click="downloadActive" title="Download log">⬇</button>
                         <button class="icon-btn danger" @click="deleteActive" title="Delete log">🗑</button>
@@ -80,6 +82,8 @@ export default {
             content: { name: '', content: '', truncated: false },
             searchQuery: '',
             isLoading: false,
+            isFollowing: false,
+            followTimer: null,
         }
     },
     computed: {
@@ -95,14 +99,62 @@ export default {
             return lines.map(line => this.highlightLine(line)).join('\n')
         },
     },
+    watch: {
+        activeFile() {
+            if (!this.activeFile) this.stopFollow()
+        },
+    },
     async mounted() {
         await this.refresh()
+    },
+    beforeUnmount() {
+        this.stopFollow()
     },
     methods: {
         formatDate(iso) {
             if (!iso) return ''
             const d = new Date(iso)
             return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        },
+        toggleFollow() {
+            if (this.isFollowing) this.stopFollow()
+            else this.startFollow()
+        },
+        startFollow() {
+            if (!this.activeFile) return
+            this.isFollowing = true
+            this.pollFollow()
+            this.followTimer = setInterval(() => this.pollFollow(), 2000)
+        },
+        stopFollow() {
+            this.isFollowing = false
+            if (this.followTimer) {
+                clearInterval(this.followTimer)
+                this.followTimer = null
+            }
+        },
+        isAtBottom() {
+            const el = this.$refs.contentEl
+            if (!el) return true
+            return el.scrollHeight - el.scrollTop - el.clientHeight < 40
+        },
+        async pollFollow() {
+            if (!this.isFollowing || !this.activeFile) return
+            const wasAtBottom = this.isAtBottom()
+            try {
+                const c = await api.readLogFile(this.activeFile.name)
+                if (!this.isFollowing || !this.activeFile || this.activeFile.name !== c.name) return
+                this.content = c
+                if (wasAtBottom) {
+                    this.$nextTick(() => {
+                        const el = this.$refs.contentEl
+                        if (el) el.scrollTop = el.scrollHeight
+                    })
+                }
+            } catch (e) {
+                this.stopFollow()
+                this.$emit('toast', { msg: `Follow failed: ${e.message}`, type: 'danger' })
+            }
         },
         async refresh() {
             try {
@@ -296,6 +348,51 @@ export default {
 .search-input:focus {
     outline: none;
     border-color: var(--green);
+}
+
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: live-blink 1s infinite;
+}
+
+@keyframes live-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+.follow-btn {
+    padding: 5px 10px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.follow-btn:hover {
+    border-color: var(--text2);
+    color: var(--text);
+}
+
+.follow-btn.active {
+    border-color: var(--green);
+    color: var(--green);
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.2);
 }
 
 .logs-loading,
