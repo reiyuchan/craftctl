@@ -38,7 +38,10 @@
                             </span>
                         </td>
                         <td>
-                            <div class="action-row">
+                            <div class="action-row" v-if="activePlayerTab === 'Banned'">
+                                <button class="tbl-btn warn" @click="unbanPlayer(p.name)">Unban</button>
+                            </div>
+                            <div class="action-row" v-else>
                                 <button class="tbl-btn" @click="opToggle(p)">{{ p.op ? 'Deop' : 'Op' }}</button>
                                 <button v-if="p.online" class="tbl-btn warn" @click="kickPlayer(p.name)">Kick</button>
                                 <button class="tbl-btn danger" @click="banPlayer(p.name)">Ban</button>
@@ -109,6 +112,18 @@ export default {
         filteredPlayers() {
             let list = this.store.allPlayers
             if (this.activePlayerTab === 'Online') list = list.filter(p => p.online)
+            if (this.activePlayerTab === 'Banned') {
+                return this.store.bannedPlayers
+                    .filter(b => !this.playerSearch || b.name.toLowerCase().includes(this.playerSearch.toLowerCase()))
+                    .map(b => ({
+                        name: b.name,
+                        color: `hsl(${this.hashCode(b.name) % 360}, 50%, 45%)`,
+                        online: false,
+                        op: false,
+                        lastSeen: '',
+                        playtime: '',
+                    }))
+            }
             if (this.activePlayerTab === 'Whitelist') {
                 return this.store.whitelistPlayers
                     .filter(w => !this.playerSearch || w.name.toLowerCase().includes(this.playerSearch.toLowerCase()))
@@ -146,9 +161,18 @@ export default {
         async banPlayer(name) {
             try {
                 await this.store.banPlayerAction(name)
+                this.refreshBanned()
                 this.$emit('toast', { msg: `Banned ${name}`, type: 'danger' })
             } catch {
                 this.$emit('toast', { msg: `Failed to ban ${name}`, type: 'danger' })
+            }
+        },
+        async unbanPlayer(name) {
+            try {
+                await this.store.pardonPlayer(name)
+                this.$emit('toast', { msg: `Unbanned ${name}`, type: 'success' })
+            } catch {
+                this.$emit('toast', { msg: `Failed to unban ${name}`, type: 'danger' })
             }
         },
         async confirmBan() {
@@ -198,6 +222,18 @@ export default {
             } catch {
                 // ignore
             }
+        },
+        async refreshBanned() {
+            try {
+                await this.store.fetchBannedPlayers()
+            } catch {
+                // ignore
+            }
+        },
+    },
+    watch: {
+        activePlayerTab(newTab) {
+            if (newTab === 'Banned') this.refreshBanned()
         },
     },
     mounted() {

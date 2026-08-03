@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { api } from './api'
-import type { BackupInfo, ScheduledTask } from './api'
+import type { BackupInfo, BannedEntry, ScheduledTask } from './api'
 
 
 export type ServerStatus = 'running' | 'stopped' | 'starting'
@@ -277,6 +277,7 @@ export interface Store {
   maxPlayers: number
   allPlayers: Player[]
   whitelistPlayers: WhitelistEntry[]
+  bannedPlayers: BannedEntry[]
   logs: LogEntry[]
   serverProps: ServerProps
   jvmSettings: JVMSettings
@@ -348,6 +349,7 @@ export interface Store {
   kickPlayerAction(name: string): Promise<void>
   banPlayerAction(name: string): Promise<void>
   pardonPlayer(name: string): Promise<void>
+  fetchBannedPlayers(): Promise<void>
   fetchWhitelist(): Promise<void>
   addToWhitelist(name: string): Promise<void>
   removeFromWhitelist(name: string): Promise<void>
@@ -398,6 +400,7 @@ export const store = reactive<Store>({
   maxPlayers: 20,
   allPlayers: [],
   whitelistPlayers: [],
+  bannedPlayers: [],
   logs: [],
   serverProps: defaultProps(),
   jvmSettings: defaultJVMSettings(),
@@ -984,9 +987,18 @@ export const store = reactive<Store>({
     try {
       await api.pardonPlayer(name)
       this.addLog('INFO', 'info', `Pardoned ${name}`)
+      await this.fetchBannedPlayers()
     } catch (e: any) {
       this.addLog('ERROR', 'error', `Pardon failed: ${e.message ?? e}`)
       throw e
+    }
+  },
+
+  async fetchBannedPlayers(): Promise<void> {
+    try {
+      this.bannedPlayers = await api.getBannedPlayers()
+    } catch {
+      this.bannedPlayers = []
     }
   },
 

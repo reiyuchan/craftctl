@@ -17,6 +17,7 @@ var listCmdRe = regexp.MustCompile(`^There are (\d+)/\d+ players online:\s*(.*)$
 func (h Handler) registerPlayerRoutes(g fiber.Router) {
 	g.Get("/players", h.listPlayers)
 	g.Get("/players/ops", h.getOps)
+	g.Get("/players/banned", h.getBannedPlayers)
 	g.Post("/players/op", h.opPlayer)
 	g.Post("/players/deop", h.deopPlayer)
 	g.Post("/players/kick", h.kickPlayer)
@@ -80,6 +81,23 @@ func (h Handler) getOps(c *fiber.Ctx) error {
 		return errorResp(c, 500, err)
 	}
 	return c.JSON(ops)
+}
+
+func (h Handler) getBannedPlayers(c *fiber.Ctx) error {
+	list, err := readJSONList(h.cfg.ServerDir, "banned-players.json")
+	if err != nil {
+		return errorResp(c, 500, err)
+	}
+	out := make([]fiber.Map, 0, len(list))
+	for _, e := range list {
+		out = append(out, fiber.Map{
+			"name":    e["name"],
+			"reason":  e["reason"],
+			"source":  e["source"],
+			"created": e["created"],
+		})
+	}
+	return c.JSON(out)
 }
 
 func (h Handler) opPlayer(c *fiber.Ctx) error {

@@ -114,6 +114,13 @@ export interface PlayerEntry {
   bppermission?: number
 }
 
+export interface BannedEntry {
+  name: string
+  reason: string
+  source: string
+  created: string
+}
+
 export interface WebhookConfig {
   url: string
   enabled: boolean
@@ -273,6 +280,7 @@ export const api = {
   // Players
   getPlayers: () => apiFetch<{ total: number; players: string[] }>('/api/players'),
   getOps: () => apiFetch<PlayerEntry[]>('/api/players/ops'),
+  getBannedPlayers: () => apiFetch<BannedEntry[]>('/api/players/banned'),
   opPlayer: (name: string) => apiVoid('/api/players/op', { method: 'POST', body: JSON.stringify({ name }) }),
   deopPlayer: (name: string) => apiVoid('/api/players/deop', { method: 'POST', body: JSON.stringify({ name }) }),
   kickPlayer: (name: string) => apiVoid('/api/players/kick', { method: 'POST', body: JSON.stringify({ name }) }),
