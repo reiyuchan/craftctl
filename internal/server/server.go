@@ -20,6 +20,7 @@ type Server struct {
 	ws        *WebSocket
 	events    *EventHub
 	stats     *StatsCollector
+	crash     *CrashWatcher
 	scheduler *Scheduler
 }
 
@@ -34,17 +35,19 @@ func New(cfg config.Config) *Server {
 	mcServer := mc.New()
 	events := NewEventHub(mcServer, l)
 	ws := NewWebSocket(l, mcServer)
-	stats := NewStatsCollector()
+	stats := NewStatsCollector(mcServer)
 	stats.SetOnUpdate(func(snap StatsSnapshot) {
 		events.BroadcastStats(snap)
 	})
 
 	s := &Server{root: app, cfg: cfg, logger: l, mc: mcServer, ws: ws, events: events, stats: stats, scheduler: NewScheduler(cfg.DataDir, mcServer, ws, l)}
+	s.crash = NewCrashWatcher(s, l)
 
 	h := newHandler(s)
 	h.routes(app)
 	app.Use("/ws", ws.Handler())
 
+	s.crash.Start()
 	s.scheduler.Start()
 
 	return s
@@ -58,6 +61,8 @@ func (s *Server) Listen() error {
 
 func (s *Server) Stop() error {
 	s.logger.Info("Shutting down...")
+	s.crash.markManualStop()
+	s.crash.Stop()
 	if err := s.ws.Stop(); err != nil {
 		s.logger.Error("Failed to stop MC server", zap.Error(err))
 	}

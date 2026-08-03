@@ -217,12 +217,9 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 		flags = h.cfg.JVMFlags
 	}
 
-	args := []string{
-		"-Xms" + minRam,
-		"-Xmx" + maxRam,
-	}
-	args = append(args, fields(flags)...)
-	args = append(args, "-jar", "server.jar", "nogui")
+	resolved := startOpts{JavaPath: java, MinRAM: minRam, MaxRAM: maxRam, JVMFlags: flags}
+	h.crash.recordStart(resolved)
+	args := serverArgs(resolved)
 
 	eulaPath := filePath(h.cfg.ServerDir, "eula.txt")
 	if !existsFile(eulaPath) {
@@ -244,6 +241,9 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 }
 
 func (h Handler) stopServer(c *fiber.Ctx) error {
+	if h.mc.IsRunning() {
+		h.crash.markManualStop()
+	}
 	h.stats.Stop()
 	if err := h.ws.Stop(); err != nil {
 		return errorResp(c, 500, err)
@@ -281,6 +281,7 @@ func (h Handler) getServerStats(c *fiber.Ctx) error {
 			"ram":        current.RAM,
 			"ramPercent": current.RAMPercent,
 			"threads":    current.Threads,
+			"tps":        current.TPS,
 		},
 		"history": history,
 	})

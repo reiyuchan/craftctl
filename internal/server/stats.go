@@ -5,36 +5,47 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/reiyuchan/craftctl/internal/mc"
 )
 
-const maxDataPoints = 60
+const (
+	maxDataPoints   = 60
+	tpsProbeEvery   = 15 * time.Second
+	maxTPSMisses    = 6
+	tpsResponseWait = 5 * time.Second
+)
 
 type StatsSnapshot struct {
 	CPU        float64 `json:"cpu"`
 	RAM        int64   `json:"ram"`
 	RAMPercent float64 `json:"ramPercent"`
 	Threads    int     `json:"threads"`
+	TPS        float64 `json:"tps"`
 	Timestamp  int64   `json:"timestamp"`
 }
 
 type StatsCollector struct {
 	mu       sync.RWMutex
 	pid      int
+	mc       *mc.Server
+	tps      float64
 	data     []StatsSnapshot
 	stopCh   chan struct{}
 	running  bool
 	onUpdate func(StatsSnapshot)
 }
 
-func NewStatsCollector() *StatsCollector {
+func NewStatsCollector(mcSrv *mc.Server) *StatsCollector {
 	return &StatsCollector{
-		data:   make([]StatsSnapshot, 0, maxDataPoints),
-		stopCh: make(chan struct{}),
+		mc:   mcSrv,
+		data: make([]StatsSnapshot, 0, maxDataPoints),
 	}
 }
 
@@ -52,9 +63,12 @@ func (sc *StatsCollector) Start(pid int) {
 	}
 	sc.pid = pid
 	sc.data = sc.data[:0]
+	sc.tps = 0
+	sc.stopCh = make(chan struct{})
 	sc.running = true
 	sc.mu.Unlock()
 	go sc.loop()
+	go sc.probeLoop()
 }
 
 func (sc *StatsCollector) Stop() {
@@ -66,10 +80,12 @@ func (sc *StatsCollector) Stop() {
 	sc.running = false
 	sc.mu.Unlock()
 	close(sc.stopCh)
-	sc.stopCh = make(chan struct{})
 }
 
 func (sc *StatsCollector) loop() {
+	sc.mu.RLock()
+	stopCh := sc.stopCh
+	sc.mu.RUnlock()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -86,7 +102,7 @@ func (sc *StatsCollector) loop() {
 			if fn != nil {
 				fn(snap)
 			}
-		case <-sc.stopCh:
+		case <-stopCh:
 			return
 		}
 	}
@@ -95,6 +111,7 @@ func (sc *StatsCollector) loop() {
 func (sc *StatsCollector) collect() StatsSnapshot {
 	sc.mu.RLock()
 	pid := sc.pid
+	tps := sc.tps
 	sc.mu.RUnlock()
 
 	now := time.Now().UnixMilli()
@@ -108,6 +125,7 @@ func (sc *StatsCollector) collect() StatsSnapshot {
 	default:
 		snap = sc.collectFallback(pid)
 	}
+	snap.TPS = tps
 	snap.Timestamp = now
 	return snap
 }
@@ -263,4 +281,85 @@ func (sc *StatsCollector) History() []StatsSnapshot {
 	out := make([]StatsSnapshot, len(sc.data))
 	copy(out, sc.data)
 	return out
+}
+
+// ── TPS probe ────────────────────────────────────────────────────────────────
+
+var tpsLineRe = regexp.MustCompile(`TPS from last 1m, 5m, 15m:\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)`)
+
+func parseTPSLine(line string) (float64, bool) {
+	m := tpsLineRe.FindStringSubmatch(line)
+	if m == nil {
+		return 0, false
+	}
+	tps, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, false
+	}
+	return tps, true
+}
+
+func (sc *StatsCollector) probeLoop() {
+	sc.mu.RLock()
+	stopCh := sc.stopCh
+	sc.mu.RUnlock()
+	ticker := time.NewTicker(tpsProbeEvery)
+	defer ticker.Stop()
+	misses := 0
+	for {
+		select {
+		case <-ticker.C:
+			matched, stopped := sc.probe(stopCh)
+			if stopped {
+				return
+			}
+			if matched {
+				misses = 0
+				continue
+			}
+			misses++
+			if misses >= maxTPSMisses {
+				return
+			}
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+func (sc *StatsCollector) probe(stopCh chan struct{}) (matched, stopped bool) {
+	sc.mu.RLock()
+	mcSrv := sc.mc
+	sc.mu.RUnlock()
+	if mcSrv == nil || !mcSrv.IsRunning() {
+		return false, false
+	}
+
+	ch := make(chan string, 8)
+	mcSrv.RegisterCallback(ch)
+	defer mcSrv.UnregisterCallback(ch)
+
+	if err := mcSrv.Send("tps"); err != nil {
+		return false, false
+	}
+
+	timeout := time.After(tpsResponseWait)
+	for {
+		select {
+		case line, ok := <-ch:
+			if !ok {
+				return false, false
+			}
+			if tps, ok := parseTPSLine(line); ok {
+				sc.mu.Lock()
+				sc.tps = tps
+				sc.mu.Unlock()
+				return true, false
+			}
+		case <-stopCh:
+			return false, true
+		case <-timeout:
+			return false, false
+		}
+	}
 }

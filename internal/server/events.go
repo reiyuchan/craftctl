@@ -68,8 +68,8 @@ func (h *EventHub) broadcast(clients map[chan string]struct{}, data string) {
 }
 
 func (h *EventHub) BroadcastStats(snap StatsSnapshot) {
-	data := fmt.Sprintf(`{"cpu":%.2f,"ram":%d,"ramPercent":%.2f,"threads":%d,"timestamp":%d}`,
-		snap.CPU, snap.RAM, snap.RAMPercent, snap.Threads, snap.Timestamp)
+	data := fmt.Sprintf(`{"cpu":%.2f,"ram":%d,"ramPercent":%.2f,"threads":%d,"tps":%.2f,"timestamp":%d}`,
+		snap.CPU, snap.RAM, snap.RAMPercent, snap.Threads, snap.TPS, snap.Timestamp)
 	h.broadcast(h.stats, data)
 }
 
