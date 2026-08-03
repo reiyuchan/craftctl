@@ -26,6 +26,7 @@ export interface CurrentStats {
   ram: number
   ramPercent: number
   threads: number
+  tps: number
 }
 
 export type ChartMetric = keyof ChartData
@@ -395,7 +396,7 @@ export const store = reactive<Store>({
   serverStatus: 'stopped',
   stats: [],
   chartData: { TPS: [], RAM: [], CPU: [] },
-  currentStats: { cpu: 0, ram: 0, ramPercent: 0, threads: 0 },
+  currentStats: { cpu: 0, ram: 0, ramPercent: 0, threads: 0, tps: 0 },
   onlinePlayers: [],
   maxPlayers: 20,
   allPlayers: [],
@@ -723,7 +724,7 @@ export const store = reactive<Store>({
       this.currentStats = result.current
       this.chartData.CPU = result.history.map(h => h.cpu)
       this.chartData.RAM = result.history.map(h => h.ram / (1024 * 1024 * 1024))
-      this.chartData.TPS = result.history.map(() => 20)
+      this.chartData.TPS = result.history.map(h => h.tps ?? 0)
     } catch {
       // ignore
     }

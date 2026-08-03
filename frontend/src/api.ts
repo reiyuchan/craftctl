@@ -325,7 +325,7 @@ export const api = {
       body: JSON.stringify({ software, mcVersion, build }),
     }),
 
-  getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }[] }>('/api/server/stats'),
+  getServerStats: () => apiFetch<{ current: { cpu: number; ram: number; ramPercent: number; threads: number; tps: number }; history: { cpu: number; ram: number; ramPercent: number; threads: number; tps: number; timestamp: number }[] }>('/api/server/stats'),
 
   listFiles: (path: string) =>
     apiFetch<Array<{ name: string; isDir: boolean; size: number; modTime: string }>>(
@@ -375,7 +375,7 @@ export const api = {
 type LogCallback = (line: string) => void
 type VoidCallback = () => void
 type ErrorCallback = (error: string) => void
-type StatsCallback = (data: { cpu: number; ram: number; ramPercent: number; threads: number; timestamp: number }) => void
+type StatsCallback = (data: { cpu: number; ram: number; ramPercent: number; threads: number; tps: number; timestamp: number }) => void
 
 let _eventSources: Record<string, EventSource | null> = {
   'server-log': null,

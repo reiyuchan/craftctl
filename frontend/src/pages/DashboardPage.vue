@@ -116,7 +116,7 @@ export default {
             this.store.currentStats = data
             this.store.chartData.CPU.push(data.cpu)
             this.store.chartData.RAM.push(data.ram / (1024 * 1024 * 1024))
-            this.store.chartData.TPS.push(20)
+            this.store.chartData.TPS.push(data.tps ?? 20)
             if (this.store.chartData.CPU.length > 60) {
                 this.store.chartData.CPU.shift()
                 this.store.chartData.RAM.shift()
