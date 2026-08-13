@@ -228,6 +228,7 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 	}
 
 	h.crash.recordStart(resolved)
+	saveStartOpts(h.cfg.DataDir, resolved)
 	appendHistory(h.cfg.DataDir, "startup", "Server started")
 	args := serverArgs(resolved)
 
