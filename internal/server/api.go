@@ -118,6 +118,9 @@ func (h Handler) routes(app *fiber.App) {
 	g.Put("/webhook", h.updateWebhookConfig)
 	g.Post("/webhook/test", h.testWebhook)
 
+	g.Get("/crash/config", h.getCrashConfig)
+	g.Put("/crash/config", h.updateCrashConfig)
+
 	g.Get("/config/export", h.exportConfig)
 	g.Post("/config/import", h.importConfig)
 

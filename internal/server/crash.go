@@ -8,11 +8,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	crashCooldown   = 30 * time.Second
-	maxCrashRetries = 3
-)
-
 type CrashWatcher struct {
 	srv     *Server
 	logger  *zap.Logger
@@ -82,17 +77,26 @@ func (cw *CrashWatcher) run() {
 }
 
 func (cw *CrashWatcher) autoRestart() {
-	for attempt := 1; attempt <= maxCrashRetries; attempt++ {
+	cfg := loadCrashConfig(cw.srv.cfg.DataDir)
+	if !cfg.Enabled {
+		msg := "Server crashed unexpectedly. Auto-restart is disabled."
+		cw.srv.NotifyWebhook("crash", msg)
+		cw.logger.Warn("server crashed; auto-restart disabled")
+		return
+	}
+
+	cooldown := time.Duration(cfg.CooldownSeconds) * time.Second
+	for attempt := 1; attempt <= cfg.MaxRetries; attempt++ {
 		cw.mu.Lock()
 		opts := cw.opts
 		cw.mu.Unlock()
 
-		msg := fmt.Sprintf("Server crashed unexpectedly (attempt %d/%d). Restarting in 30s.", attempt, maxCrashRetries)
+		msg := fmt.Sprintf("Server crashed unexpectedly (attempt %d/%d). Restarting in %ds.", attempt, cfg.MaxRetries, cfg.CooldownSeconds)
 		cw.srv.NotifyWebhook("crash", msg)
-		cw.logger.Warn("server crashed", zap.Int("attempt", attempt), zap.Int("max", maxCrashRetries))
+		cw.logger.Warn("server crashed", zap.Int("attempt", attempt), zap.Int("max", cfg.MaxRetries))
 
 		select {
-		case <-time.After(crashCooldown):
+		case <-time.After(cooldown):
 		case <-cw.stopCh:
 			return
 		}
@@ -114,7 +118,8 @@ func (cw *CrashWatcher) autoRestart() {
 			return
 		}
 	}
-	cw.srv.NotifyWebhook("crash", fmt.Sprintf("Server crashed %d times in a row; giving up.", maxCrashRetries))
+	giveUpMsg := fmt.Sprintf("Server crashed %d times in a row; giving up.", cfg.MaxRetries)
+	cw.srv.NotifyWebhook("crash", giveUpMsg)
 	cw.logger.Error("server crashed repeatedly; giving up")
 }
 
