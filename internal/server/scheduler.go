@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/reiyuchan/craftctl/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -308,10 +309,14 @@ func (s *Scheduler) runRestart(t *ScheduledTask) {
 	if s.mc == nil {
 		return
 	}
-	if t != nil && t.PreScript != "" {
-		s.logger.Info("running pre-start script", zap.String("script", t.PreScript))
-		if err := runScript(t.PreScript); err != nil {
-			s.logger.Error("pre-start script failed", zap.Error(err))
+	taskName := ""
+	if t != nil {
+		taskName = t.Name
+		if t.PreScript != "" {
+			s.logger.Info("running pre-start script", zap.String("script", t.PreScript))
+			if err := runScript(t.PreScript); err != nil {
+				s.logger.Error("pre-start script failed", zap.Error(err))
+			}
 		}
 	}
 	if s.mc.IsRunning() {
@@ -321,13 +326,27 @@ func (s *Scheduler) runRestart(t *ScheduledTask) {
 		}
 	}
 	serverDir := filepath.Join(s.dataDir, "servers", "default")
-	java := "java"
-	args := []string{"-Xms2G", "-Xmx4G", "-jar", "server.jar", "nogui"}
+	opts, ok := loadStartOpts(s.dataDir)
+	if !ok {
+		opts = startOpts{}
+	}
+	if opts.JavaPath == "" {
+		opts.JavaPath = "java"
+	}
+	if opts.MinRAM == "" {
+		opts.MinRAM = config.MinRAM
+	}
+	if opts.MaxRAM == "" {
+		opts.MaxRAM = config.MaxRAM
+	}
+	if opts.JVMFlags == "" {
+		opts.JVMFlags = config.JVMFlags
+	}
 	eulaPath := filepath.Join(serverDir, "eula.txt")
 	if !existsFile(eulaPath) {
 		os.WriteFile(eulaPath, []byte("eula=true\n"), 0o644)
 	}
-	if err := s.mc.Start(java, serverDir, args...); err != nil {
+	if err := s.mc.Start(opts.JavaPath, serverDir, serverArgs(opts)...); err != nil {
 		s.logger.Error("scheduler restart: start failed", zap.Error(err))
 		return
 	}
@@ -340,6 +359,7 @@ func (s *Scheduler) runRestart(t *ScheduledTask) {
 			}
 		}()
 	}
+	appendHistory(s.dataDir, "restart", fmt.Sprintf("Scheduled restart: %s", taskName))
 	s.logger.Info("scheduled restart completed")
 }
 
