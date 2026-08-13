@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 import { api } from './api'
-import type { BackupInfo, BannedEntry, ScheduledTask } from './api'
+import type { BackupInfo, BannedEntry, CrashConfig, HistoryEvent, ScheduledTask } from './api'
 
 
 export type ServerStatus = 'running' | 'stopped' | 'starting'
@@ -354,6 +354,16 @@ export interface Store {
   fetchWhitelist(): Promise<void>
   addToWhitelist(name: string): Promise<void>
   removeFromWhitelist(name: string): Promise<void>
+
+  crashConfig: CrashConfig
+  historyEvents: HistoryEvent[]
+  logRetention: { keepDays: number }
+  fetchCrashConfig(): Promise<void>
+  saveCrashConfig(cfg: CrashConfig): Promise<void>
+  fetchHistory(): Promise<void>
+  fetchLogRetention(): Promise<void>
+  saveLogRetention(keepDays: number): Promise<void>
+  pruneLogs(): Promise<number>
 }
 
 
@@ -421,6 +431,9 @@ export const store = reactive<Store>({
   serverBuilds: [],
   isDownloadingServer: false,
   downloadingBuildId: null,
+  crashConfig: { enabled: true, cooldownSeconds: 30, maxRetries: 3 },
+  historyEvents: [],
+  logRetention: { keepDays: 7 },
 
   get hasModLoader(): boolean {
     return this.installedModLoader !== null
@@ -1033,6 +1046,64 @@ export const store = reactive<Store>({
       await this.fetchWhitelist()
     } catch (e: any) {
       this.addLog('ERROR', 'error', `Whitelist remove failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchCrashConfig(): Promise<void> {
+    try {
+      this.crashConfig = await api.getCrashConfig()
+    } catch {
+      // keep defaults
+    }
+  },
+
+  async saveCrashConfig(cfg: CrashConfig): Promise<void> {
+    try {
+      await api.updateCrashConfig(cfg)
+      this.crashConfig = { ...cfg }
+      this.addLog('INFO', 'info', 'Crash auto-restart settings saved')
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Save crash config failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async fetchHistory(): Promise<void> {
+    try {
+      const result = await api.getServerHistory()
+      this.historyEvents = result.events
+    } catch {
+      this.historyEvents = []
+    }
+  },
+
+  async fetchLogRetention(): Promise<void> {
+    try {
+      this.logRetention = await api.getLogRetention()
+    } catch {
+      // keep defaults
+    }
+  },
+
+  async saveLogRetention(keepDays: number): Promise<void> {
+    try {
+      await api.updateLogRetention(keepDays)
+      this.logRetention = { keepDays }
+      this.addLog('INFO', 'info', `Log retention set to ${keepDays} days`)
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Save log retention failed: ${e.message ?? e}`)
+      throw e
+    }
+  },
+
+  async pruneLogs(): Promise<number> {
+    try {
+      const result = await api.pruneLogsNow()
+      this.addLog('INFO', 'info', `Pruned ${result.deleted} log files`)
+      return result.deleted
+    } catch (e: any) {
+      this.addLog('ERROR', 'error', `Prune logs failed: ${e.message ?? e}`)
       throw e
     }
   },

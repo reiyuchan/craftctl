@@ -182,6 +182,22 @@ export interface LogContent {
   truncated: boolean
 }
 
+export interface CrashConfig {
+  enabled: boolean
+  cooldownSeconds: number
+  maxRetries: number
+}
+
+export interface HistoryEvent {
+  event: string
+  time: string
+  message: string
+}
+
+export interface LogRetention {
+  keepDays: number
+}
+
 // ── API Interface ────────────────────────────────────────────────────────────
 
 export const api = {
@@ -368,6 +384,20 @@ export const api = {
   downloadLogFile: (file: string) => apiDownload(`/api/logs/download?file=${encodeURIComponent(file)}`),
   deleteLogFile: (file: string) =>
     apiVoid(`/api/logs/${encodeURIComponent(file)}`, { method: 'DELETE' }),
+
+  // ── Crash auto-restart ──────────────────────────────────────────────────────
+  getCrashConfig: () => apiFetch<CrashConfig>('/api/crash/config'),
+  updateCrashConfig: (cfg: CrashConfig) =>
+    apiVoid('/api/crash/config', { method: 'PUT', body: JSON.stringify(cfg) }),
+
+  // ── Server history ──────────────────────────────────────────────────────────
+  getServerHistory: () => apiFetch<{ events: HistoryEvent[] }>('/api/server/history'),
+
+  // ── Log retention / pruning ─────────────────────────────────────────────────
+  getLogRetention: () => apiFetch<LogRetention>('/api/logs/retention'),
+  updateLogRetention: (keepDays: number) =>
+    apiVoid('/api/logs/retention', { method: 'PUT', body: JSON.stringify({ keepDays }) }),
+  pruneLogsNow: () => apiFetch<{ deleted: number }>('/api/logs/prune', { method: 'POST' }),
 }
 
 // ── Events (SSE) ──────────────────────────────────────────────────────────────

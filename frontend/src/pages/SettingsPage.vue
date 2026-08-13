@@ -40,6 +40,72 @@
             </div>
         </div>
 
+        <div class="settings-grid">
+            <div class="card settings-card">
+                <div class="card-header">
+                    <span class="card-title">CRASH AUTO-RESTART</span>
+                </div>
+                <div class="settings-body">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Auto-restart on crash</span>
+                            <span class="setting-desc">Restart the server automatically after a crash</span>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle">
+                                <input type="checkbox" v-model="store.crashConfig.enabled" />
+                                <span class="toggle-track">
+                                    <span class="toggle-thumb"></span>
+                                </span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Cooldown</span>
+                            <span class="setting-desc">Seconds to wait before restarting</span>
+                        </div>
+                        <div class="setting-control">
+                            <input v-model.number="store.crashConfig.cooldownSeconds" type="number" min="0" class="setting-input sm" />
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Max retries</span>
+                            <span class="setting-desc">Times to retry before giving up</span>
+                        </div>
+                        <div class="setting-control">
+                            <input v-model.number="store.crashConfig.maxRetries" type="number" min="0" class="setting-input sm" />
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn btn-primary" @click="saveCrashConfig">SAVE</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card settings-card">
+                <div class="card-header">
+                    <span class="card-title">LOG RETENTION</span>
+                </div>
+                <div class="settings-body">
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <span class="setting-name">Keep logs (days)</span>
+                            <span class="setting-desc">How long to keep log files (0 = keep all)</span>
+                        </div>
+                        <div class="setting-control">
+                            <input v-model.number="store.logRetention.keepDays" type="number" min="0" class="setting-input sm" />
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="btn btn-outline" @click="pruneLogs">PRUNE NOW</button>
+                        <button class="btn btn-primary" @click="saveLogRetention">SAVE</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="jvm-section card settings-card">
             <div class="card-header">
                 <span class="card-title">JVM SETTINGS</span>
@@ -300,6 +366,8 @@ export default {
     mounted() {
         store.fetchServerProps()
         store.fetchScheduledTasks()
+        store.fetchCrashConfig()
+        store.fetchLogRetention()
         this.loadWebhook()
     },
     methods: {
@@ -413,6 +481,30 @@ export default {
                 this.$emit('toast', { msg: 'Test sent!', type: 'success' })
             } catch (e: any) {
                 this.$emit('toast', { msg: `Failed: ${e.message}`, type: 'danger' })
+            }
+        },
+        async saveCrashConfig() {
+            try {
+                await store.saveCrashConfig(this.store.crashConfig)
+                this.$emit('toast', { msg: 'Crash auto-restart settings saved!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        async saveLogRetention() {
+            try {
+                await store.saveLogRetention(this.store.logRetention.keepDays)
+                this.$emit('toast', { msg: 'Log retention saved!', type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
+            }
+        },
+        async pruneLogs() {
+            try {
+                const deleted = await store.pruneLogs()
+                this.$emit('toast', { msg: `Pruned ${deleted} log file${deleted === 1 ? '' : 's'}`, type: 'success' })
+            } catch (e: any) {
+                this.$emit('toast', { msg: `Failed: ${e.message ?? e}`, type: 'danger' })
             }
         },
     },

@@ -67,6 +67,22 @@
             </div>
 
         </div>
+
+        <div class="card history-card">
+            <div class="card-header">
+                <span class="card-title">SERVER HISTORY</span>
+            </div>
+            <div class="history-list">
+                <div v-for="(ev, i) in historyEvents" :key="i" class="history-row">
+                    <span class="history-badge" :class="ev.event">{{ ev.event }}</span>
+                    <span class="history-time">{{ formatTime(ev.time) }}</span>
+                    <span class="history-message">{{ ev.message }}</span>
+                </div>
+                <div v-if="historyEvents.length === 0" class="empty-state">
+                    No server history yet
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -109,9 +125,13 @@ export default {
             return this.chartPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
                 + ' L 400 100 L 0 100 Z'
         },
+        historyEvents() {
+            return this.store.historyEvents.slice(-10).reverse()
+        },
     },
     async mounted() {
         await this.store.fetchServerStats()
+        this.store.fetchHistory()
         this.cleanup = events.onServerStats((data) => {
             this.store.currentStats = data
             this.store.chartData.CPU.push(data.cpu)
@@ -132,6 +152,11 @@ export default {
             if (ping < 50) return 'ping-good'
             if (ping < 100) return 'ping-ok'
             return 'ping-bad'
+        },
+        formatTime(iso) {
+            if (!iso) return ''
+            const d = new Date(iso)
+            return d.toLocaleString()
         },
     },
 }
@@ -322,5 +347,74 @@ export default {
     padding: 24px;
     text-align: center;
     color: var(--muted);
+}
+
+/* Server history */
+.history-card {
+    margin-top: 16px;
+}
+
+.history-list {
+    padding: 8px 0;
+}
+
+.history-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    font-size: 12px;
+    transition: background 0.1s;
+}
+
+.history-row:hover {
+    background: var(--bg3);
+}
+
+.history-badge {
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    min-width: 76px;
+    text-align: center;
+}
+
+.history-badge.startup {
+    color: var(--green);
+    background: rgba(74, 222, 128, 0.12);
+}
+
+.history-badge.shutdown {
+    color: var(--yellow);
+    background: rgba(251, 191, 36, 0.12);
+}
+
+.history-badge.crash {
+    color: var(--red);
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.history-badge.restart {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.12);
+}
+
+.history-time {
+    color: var(--muted);
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    flex-shrink: 0;
+}
+
+.history-message {
+    color: var(--text2);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 </style>
