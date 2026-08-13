@@ -129,6 +129,8 @@ func (h Handler) routes(app *fiber.App) {
 	g.Get("/logs/read", h.readLog)
 	g.Get("/logs/download", h.downloadLog)
 	g.Delete("/logs/:name", h.deleteLog)
+
+	h.registerRetentionRoutes(g)
 }
 
 // ── Server lifecycle ──────────────────────────────────────────────────────────

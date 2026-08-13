@@ -31,13 +31,14 @@ type ScheduledTask struct {
 }
 
 type Scheduler struct {
-	tasks   []ScheduledTask
-	mu      sync.Mutex
-	dataDir string
-	mc      mcServerOps
-	ws      *WebSocket
-	logger  *zap.Logger
-	stopCh  chan struct{}
+	tasks         []ScheduledTask
+	mu            sync.Mutex
+	dataDir       string
+	mc            mcServerOps
+	ws            *WebSocket
+	logger        *zap.Logger
+	stopCh        chan struct{}
+	retentionDays int
 }
 
 type mcServerOps interface {
@@ -112,17 +113,49 @@ func (s *Scheduler) Stop() {
 	close(s.stopCh)
 }
 
+func (s *Scheduler) SetRetentionDays(n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.retentionDays = n
+}
+
 func (s *Scheduler) run() {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
+	tickCount := 0
 	for {
 		select {
 		case <-s.stopCh:
 			return
 		case now := <-ticker.C:
+			tickCount++
 			s.tick(now)
+			if tickCount%60 == 0 {
+				s.pruneLogs()
+			}
 		}
 	}
+}
+
+func (s *Scheduler) pruneLogs() {
+	s.mu.Lock()
+	days := s.retentionDays
+	s.mu.Unlock()
+
+	cfg := loadLogRetention(s.dataDir)
+	if cfg.KeepDays > 0 {
+		days = cfg.KeepDays
+	}
+	if days <= 0 {
+		return
+	}
+	logsDir := filepath.Join(s.dataDir, "servers", "default", "logs")
+	deleted, err := pruneOldLogs(logsDir, days)
+	if err != nil {
+		s.logger.Error("log retention prune failed", zap.Error(err))
+		return
+	}
+	s.logger.Info("log retention prune completed", zap.Int("deleted", deleted))
 }
 
 func (s *Scheduler) tick(now time.Time) {
