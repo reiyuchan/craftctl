@@ -120,6 +120,7 @@ func (h Handler) routes(app *fiber.App) {
 
 	g.Get("/crash/config", h.getCrashConfig)
 	g.Put("/crash/config", h.updateCrashConfig)
+	g.Get("/server/history", h.getServerHistory)
 
 	g.Get("/config/export", h.exportConfig)
 	g.Post("/config/import", h.importConfig)
@@ -227,6 +228,7 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 	}
 
 	h.crash.recordStart(resolved)
+	appendHistory(h.cfg.DataDir, "startup", "Server started")
 	args := serverArgs(resolved)
 
 	eulaPath := filePath(h.cfg.ServerDir, "eula.txt")
@@ -252,7 +254,12 @@ func (h Handler) stopServer(c *fiber.Ctx) error {
 	if err := h.ws.Stop(); err != nil {
 		return errorResp(c, 500, err)
 	}
+	appendHistory(h.cfg.DataDir, "shutdown", "Server stopped")
 	return c.JSON(fiber.Map{"status": "stopping"})
+}
+
+func (h Handler) getServerHistory(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{"events": readHistory(h.cfg.DataDir)})
 }
 
 func (h Handler) sendCommand(c *fiber.Ctx) error {

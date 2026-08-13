@@ -81,6 +81,7 @@ func (cw *CrashWatcher) autoRestart() {
 	if !cfg.Enabled {
 		msg := "Server crashed unexpectedly. Auto-restart is disabled."
 		cw.srv.NotifyWebhook("crash", msg)
+		appendHistory(cw.srv.cfg.DataDir, "crash", msg)
 		cw.logger.Warn("server crashed; auto-restart disabled")
 		return
 	}
@@ -93,6 +94,7 @@ func (cw *CrashWatcher) autoRestart() {
 
 		msg := fmt.Sprintf("Server crashed unexpectedly (attempt %d/%d). Restarting in %ds.", attempt, cfg.MaxRetries, cfg.CooldownSeconds)
 		cw.srv.NotifyWebhook("crash", msg)
+		appendHistory(cw.srv.cfg.DataDir, "crash", msg)
 		cw.logger.Warn("server crashed", zap.Int("attempt", attempt), zap.Int("max", cfg.MaxRetries))
 
 		select {
@@ -120,6 +122,7 @@ func (cw *CrashWatcher) autoRestart() {
 	}
 	giveUpMsg := fmt.Sprintf("Server crashed %d times in a row; giving up.", cfg.MaxRetries)
 	cw.srv.NotifyWebhook("crash", giveUpMsg)
+	appendHistory(cw.srv.cfg.DataDir, "crash", giveUpMsg)
 	cw.logger.Error("server crashed repeatedly; giving up")
 }
 
