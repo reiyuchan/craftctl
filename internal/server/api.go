@@ -221,16 +221,17 @@ func (h Handler) startServer(c *fiber.Ctx) error {
 	}
 
 	resolved := startOpts{JavaPath: java, MinRAM: minRam, MaxRAM: maxRam, JVMFlags: flags}
+
+	if err := h.validateStartup(resolved); err != nil {
+		return errorResp(c, 400, err)
+	}
+
 	h.crash.recordStart(resolved)
 	args := serverArgs(resolved)
 
 	eulaPath := filePath(h.cfg.ServerDir, "eula.txt")
 	if !existsFile(eulaPath) {
 		os.WriteFile(eulaPath, []byte("eula=true\n"), 0o644)
-	}
-
-	if !existsFile(filePath(h.cfg.ServerDir, "server.jar")) {
-		return errorResp(c, 400, errNoServerJar)
 	}
 
 	if err := h.ws.Start(java, h.cfg.ServerDir, args...); err != nil {
